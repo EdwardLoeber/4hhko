@@ -9,6 +9,7 @@
     <h1>PHP Lives!</h1>
     <ul>
         <li><a href="femmy.html">Back to HW1</a></li>
+    </ul>
     <?php
       phpinfo();
      ?>
