@@ -1,0 +1,35 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 2rem;
+    background-color: #fafafa;
+    color: #333;
+}
+
+h1 {
+    color: #222;
+}
+
+h2 {
+    color: #444;
+    margin-top: 1.5rem;
+}
+
+nav {
+    margin-bottom: 2rem;
+}
+
+a {
+    color: #0066cc;
+}
+
+a:hover {
+    color: #004499;
+}
+
+ul {
+    margin-left: 1.5rem;
+}
+
+li {
+    margin-bottom: 0.5rem;
+}
