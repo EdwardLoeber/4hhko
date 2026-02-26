@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-QT50K7ZQ7B"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-QT50K7ZQ7B');
+</script>
+
+    <title>save form</title>
+
+      <!-- Matomo -->
+  <script>
+    var _paq = window._paq = window._paq || [];
+    /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+    _paq.push(['trackPageView']);
+    _paq.push(['enableLinkTracking']);
+    (function() {
+      var u="//4hhko.com/matomo/";
+      _paq.push(['setTrackerUrl', u+'matomo.php']);
+      _paq.push(['setSiteId', '1']);
+      var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+      g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+    })();
+  </script>
+  <!-- End Matomo Code -->
+<script src="https://cdn.logr-in.com/LogRocket.min.js" crossorigin="anonymous"></script>
+<script>window.LogRocket && window.LogRocket.init('briwgb/4hhkocom');</script>
+<script src="https://t.contentsquare.net/uxa/e33771109e0d5.js"></script>
+</head>
+
+<body>
+    <h2>Python version</h2>
+    <form action="/cgi-bin/state-python.py" method="POST">
+        <label>Name: <input type="text" name="name" placeholder="Type right here. HERE."></label><br><br>
+
+        <label>Who is your favorite student?:
+            <select name="fav_student">
+                <option value="Edward Loeber">Edward Loeber</option>
+                <option value="Anybody else... :'[">Quite literally, anybody else</option>
+            </select>
+        </label><br><br>
+
+        <label>Reason:  <input type="text" name="reason"></label><br><br>
+
+        <button type="submit">Save</button>
+    </form>
+
+    <h2>Go Version</h2>
+    <form action="/cgi-bin/state-go" method="POST">
+        <label>Name: <input type="text" name="name" placeholder="Type right here. HERE."></label><br><br>
+        <label>Who is your favorite student?:
+            <select name="fav_student">
+                <option value="Edward Loeber">Edward Loeber</option>
+                <option value="Anybody else... :'[">Quite literally, anybody else</option>
+            </select>
+        </label><br><br>
+        <label>Reason:  <input type="text" name="reason"></label><br><br>
+        <button type="submit">Save</button>
+    </form>
+    
+    <h2>PHP Version</h2>
+    <form action="/cgi-bin/state-php.phpcgi" method="POST">
+        <label>Name: <input type="text" name="name" placeholder="Type right here. HERE."></label><br><br>
+        <label>Who is your favorite student?:
+            <select name="fav_student">
+                <option value="Edward Loeber">Edward Loeber</option>
+                <option value="Anybody else... :'[">Quite literally, anybody else</option>
+            </select>
+        </label><br><br>
+        <label>Reason:  <input type="text" name="reason"></label><br><br>
+        <button type="submit">Save</button>
+    </form>
+
+</body>
+</html>

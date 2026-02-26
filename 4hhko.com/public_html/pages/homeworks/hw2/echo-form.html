@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-QT50K7ZQ7B"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-QT50K7ZQ7B');
+</script>
+
+
+    <meta charset="UTF-8">
+    <title>CGI Echo Form</title>
+
+      <!-- Matomo -->
+  <script>
+    var _paq = window._paq = window._paq || [];
+    /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+    _paq.push(['trackPageView']);
+    _paq.push(['enableLinkTracking']);
+    (function() {
+      var u="//4hhko.com/matomo/";
+      _paq.push(['setTrackerUrl', u+'matomo.php']);
+      _paq.push(['setSiteId', '1']);
+      var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+      g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+    })();
+  </script>
+  <!-- End Matomo Code -->
+<script src="https://cdn.logr-in.com/LogRocket.min.js" crossorigin="anonymous"></script>
+<script>window.LogRocket && window.LogRocket.init('briwgb/4hhkocom');</script>
+
+<script src="https://t.contentsquare.net/uxa/e33771109e0d5.js"></script>
+
+
+</head>
+
+
+<body>
+    <h1>CGI Echo Form</h1>
+
+    <div id="js-form" style="display:none;">
+        <label>Language:
+            <select id="language">
+                <option value="/cgi-bin/echo-python.py">Python</option>
+                <option value="/cgi-bin/echo-php.phpcgi">PHP</option>
+                <option value="/cgi-bin/echo-go">Go</option>
+            </select>
+        </label><br><br>
+
+        <label>Method:
+            <select id="method">
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+                <option value="PUT">PUT</option>
+                <option value="DELETE">DELETE</option>
+            </select>
+        </label><br><br>
+
+        <label>Encoding:
+            <select id="encoding">
+                <option value="application/x-www-form-urlencoded">x-www-form-urlencoded</option>
+                <option value="application/json">application/json</option>
+            </select>
+        </label><br><br>
+
+        <label>Name:
+            <input type="text" id="name" placeholder="Enter your name">
+        </label><br><br>
+
+        <label>Message:
+            <input type="text" id="message" placeholder="Enter a message">
+        </label><br><br>
+
+        <button type="button" onclick="submitForm()">Submit</button>
+    </div>
+
+    <noscript>
+        <p>JavaScript is disabled. Only GET, POST, and the encoding application/x-www-form-urlencoded is available.</p>
+
+        <h2>GET Requests</h2>
+
+        <h3>Python</h3>
+        <form action="/cgi-bin/echo-python.py" method="GET">
+            <label>Name: <input type="text" name="name" placeholder="Enter your name"></label><br><br>
+            <label>Message: <input type="text" name="message" placeholder="Enter a message"></label><br><br>
+            <button type="submit">GET</button>
+        </form><br>
+
+        <h3>PHP</h3>
+        <form action="/cgi-bin/echo-php.phpcgi" method="GET">
+            <label>Name: <input type="text" name="name" placeholder="Enter your name"></label><br><br>
+            <label>Message: <input type="text" name="message" placeholder="Enter a message"></label><br><br>
+            <button type="submit">GET</button>
+        </form><br>
+
+        <h3>Go</h3>
+        <form action="/cgi-bin/echo-go" method="GET">
+            <label>Name: <input type="text" name="name" placeholder="Enter your name"></label><br><br>
+            <label>Message: <input type="text" name="message" placeholder="Enter a message"></label><br><br>
+            <button type="submit">GET</button>
+        </form>
+
+        <h2>POST Requests</h2>
+
+        <h3>Python</h3>
+        <form action="/cgi-bin/echo-python.py" method="POST">
+            <label>Name: <input type="text" name="name" placeholder="Enter your name"></label><br><br>
+            <label>Message: <input type="text" name="message" placeholder="Enter a message"></label><br><br>
+            <button type="submit">POST</button>
+        </form><br>
+
+        <h3>PHP</h3>
+        <form action="/cgi-bin/echo-php.phpcgi" method="POST">
+            <label>Name: <input type="text" name="name" placeholder="Enter your name"></label><br><br>
+            <label>Message: <input type="text" name="message" placeholder="Enter a message"></label><br><br>
+            <button type="submit">POST</button>
+        </form><br>
+
+        <h3>Go</h3>
+        <form action="/cgi-bin/echo-go" method="POST">
+            <label>Name: <input type="text" name="name" placeholder="Enter your name"></label><br><br>
+            <label>Message: <input type="text" name="message" placeholder="Enter a message"></label><br><br>
+            <button type="submit">POST</button>
+        </form>
+    </noscript>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('js-form').style.display = 'block';
+        });
+
+        async function submitForm() {
+            const language = document.getElementById('language').value;
+            const method = document.getElementById('method').value;
+            const encoding = document.getElementById('encoding').value;
+            const name = document.getElementById('name').value;
+            const message = document.getElementById('message').value;
+
+            let body = null;
+            let url = language;
+
+            if (method === 'GET') {
+                url += '?name=' + encodeURIComponent(name) + '&message=' + encodeURIComponent(message);
+            } else {
+                if (encoding === 'application/json') {
+                    body = JSON.stringify({ name: name, message: message });
+                } else {
+                    body = 'name=' + encodeURIComponent(name) + '&message=' + encodeURIComponent(message);
+                }
+            }
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {'Content-Type' : encoding},
+                    body: body
+                });
+
+                const html = await response.text();
+                const newWindow = window.open('', '_blank');
+                newWindow.document.write(html);
+                newWindow.document.close();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

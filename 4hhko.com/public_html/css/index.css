@@ -1,0 +1,30 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 2rem;
+    background-color: #ffffff;
+    color: #000;
+}
+
+h1 {
+    color: #000;
+}
+
+h2 {
+    color: #000;
+    margin-top: 1.5rem;
+}
+
+a {
+    color: #0066cc;
+}
+
+a:hover {
+    color: #004499;
+}
+
+.demo-container {
+    display: flex;
+    justify-content: space-around;
+    flex-wrap: wrap;
+}
+
