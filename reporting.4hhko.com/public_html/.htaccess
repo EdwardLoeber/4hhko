@@ -1,0 +1,5 @@
+Options -MultiViews
+RewriteEngine On
+
+# Route all /api/* requests to api.php (preserve query string)
+RewriteRule ^api/(.*)$ api.php [QSA,L]
