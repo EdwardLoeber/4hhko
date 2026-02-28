@@ -589,7 +589,7 @@
     if (navigator.sendBeacon) {
       sent = navigator.sendBeacon(
         config.endpoint,
-        new Blob([json], { type: 'application/json' })
+        new Blob([json], { type: 'text/plain' })
       );
     }
 

@@ -1,0 +1,1 @@
+# CORS and auth are handled in the Apache vhost config and collect.php directly.
