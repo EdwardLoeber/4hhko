@@ -9,7 +9,7 @@ $p = json_decode(file_get_contents('php://input'), true);
 if (!$p) { http_response_code(400); exit; }
 
 $dsn = 'pgsql:host=localhost;dbname=analytics';
-$db  = new PDO($dsn, 'femmy', '');
+$db  = new PDO($dsn, 'femmy', 'applejacktwilightsparkle');
 
 if ($p['type'] === 'pageview') {
     $t   = $p['technographics'] ?? [];

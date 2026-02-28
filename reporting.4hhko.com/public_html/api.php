@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // ── DB Connection ─────────────────────────────────────────────────────────
 try {
-    $db = new PDO('pgsql:host=localhost;dbname=analytics', 'femmy', '');
+    $db = new PDO('pgsql:host=localhost;dbname=analytics', 'femmy', 'applejacktwilightsparkle');
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $db->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
