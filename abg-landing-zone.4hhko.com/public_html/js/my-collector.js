@@ -33,8 +33,7 @@
     function detectImagesEnabled1() {
         const flag = document.getElementById('detectImageFlag');
         if (!flag) return null;
-        return (flag.offsetWidth === 1 && flag.readyState === 'complete')
-            || (flag.offsetWidth === 1 && flag.readyState === undefined);
+        return (flag.complete && flag.naturalWidth > 0);
     }
 
     function detectImagesEnabled2() {
@@ -47,7 +46,7 @@
         }
     }
     
-    if (debugging = true) {
+    if (debugging === true) {
         console.log(payload);
     } else {
         try {
