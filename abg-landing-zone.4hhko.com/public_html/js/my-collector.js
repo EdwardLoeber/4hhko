@@ -12,6 +12,13 @@
         payload.allowsImages1  = detectImagesEnabled1();
         payload.allowsImages2  = detectImagesEnabled2();
 
+        const flag = document.getElementById('detectImageFlag');
+        console.log('flag element:', flag);
+        console.log('offsetWidth:', flag ? flag.offsetWidth : 'no element');
+        console.log('readyState:', flag ? flag.readyState : 'no element');
+        console.log('naturalWidth:', flag ? flag.naturalWidth : 'no element');
+        console.log('complete:', flag ? flag.complete : 'no element');
+        
         if (debugging === true) {
             console.log(payload);
         } else {
