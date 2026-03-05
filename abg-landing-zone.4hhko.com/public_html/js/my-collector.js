@@ -9,8 +9,10 @@
         payload.cookieEnabled  = navigator.cookieEnabled;
         payload.language       = navigator.language;
         payload.allowsJS       = true;
-        payload.allowsImages  = detectImagesEnabled();
-        
+        payload.allowsImages   = detectImagesEnabled();
+        payload.allowsCSS      = detectCSSEnabled();
+
+
         
         if (debugging === true) {
             console.log(payload);
@@ -29,13 +31,10 @@
         return (flag.complete && flag.naturalWidth > 0);
     }
 
-    if (debugging === true) {
-        console.log(payload);
-    } else {
-        try {
-            sendBeacon(payload);
-        } catch (e) {
-            console.log("ack");
-        }
+    function detectCSSEnabled() {
+        const elem = document.getElementById('detectCSS');
+        if (!elem) return null;
+        const fontSize = ExpressionNode.getComputedStyle(elem).fontSize;
+        return fontSize == '1px';
     }
 }) ();
