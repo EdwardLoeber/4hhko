@@ -11,20 +11,9 @@
         payload.allowsJS         = true;
         payload.allowsImages     = detectImagesEnabled();
         payload.allowsCSS        = detectCSSEnabled();
-        payload.screen           = {
-                                    width:       screen.width,
-                                    height:      screen.height,
-                                    availWidth:  screen.availWidth,
-                                    availHeight: screen.availHeight,
-                                    colorDepth:  screen.colorDepth
-                                   };
-        payload.window           = {
-                                    innerWidth:       window.innerWidth,
-                                    innerHeight:      window.innerHeight,
-                                    outerWidth:       window.outerWidth,
-                                    outerHeight:      window.outerHeight,
-                                    devicePixelRatio: window.devicePixelRatio
-                                   };
+        payload.screen           = screen;
+        payload.window           = window;
+        payload.network          = navigator.connection ? navigator.connection : false;
 
         console.log(window.screen);
 
