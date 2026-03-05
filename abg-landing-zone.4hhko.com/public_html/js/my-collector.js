@@ -11,8 +11,21 @@
         payload.allowsJS         = true;
         payload.allowsImages     = detectImagesEnabled();
         payload.allowsCSS        = detectCSSEnabled();
-        payload.screenWidth      = window.screen.width;
-        payload.screenHeight     = window.screen.height;
+        payload.screen           = {
+                                    width:       screen.width,
+                                    height:      screen.height,
+                                    availWidth:  screen.availWidth,
+                                    availHeight: screen.availHeight,
+                                    colorDepth:  screen.colorDepth
+                                   };
+        payload.window           = {
+                                    innerWidth:       window.innerWidth,
+                                    innerHeight:      window.innerHeight,
+                                    outerWidth:       window.outerWidth,
+                                    outerHeight:      window.outerHeight,
+                                    devicePixelRatio: window.devicePixelRatio
+                                   };
+
         console.log(window.screen);
 
 
