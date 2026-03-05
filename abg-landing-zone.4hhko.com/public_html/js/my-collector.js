@@ -11,9 +11,10 @@
         payload.allowsJS         = true;
         payload.allowsImages     = detectImagesEnabled();
         payload.allowsCSS        = detectCSSEnabled();
-        payload.screen           = screen;
-        payload.window           = window;
-        payload.network          = navigator.connection ? navigator.connection : false;
+        payload.screen           = getScreenInfo();
+        payload.window           = getWindowInfo();
+        payload.network          = getNetworkInfo();
+
 
         console.log(window.screen);
 
@@ -37,9 +38,56 @@
     }
 
     function detectCSSEnabled() {
-        const elem = document.getElementById('detectCSS');
-        if (!elem) return null;
-        const fontSize = window.getComputedStyle(elem).fontSize;
-        return fontSize == '1px';
+        const style = document.createElement('style');
+        const element = document.createElement('div');
+
+        try {
+            style.textContent = '._c_detect{visibility:hidden!important};'
+            document.head.appendChild(style);
+            element.className = '_c_detect';
+            document.head.appendChild(element);
+            return window.getComputedStyle(element).visibility === 'hidden';
+        } catch (e) {
+            return false;
+        } finally {
+            style.parentNode?.removeChild(style);
+            element.parentNode?.removeChild(element);
+        }
     }
-}) ();
+
+    function getScreenInfo() {
+        const myScreen = screen;
+        return {
+            width:       myScreen.width,
+            height:      myScreen.height,
+            availWidth:  myScreen.availWidth,
+            availHeight: myScreen.availHeight,
+            colorDepth:  myScreen.colorDepth
+        };
+    }
+
+    function getWindowInfo() {
+        const myWindow = window;
+        return {
+            innerWidth:       myWindow.innerWidth,
+            innerHeight:      myWindow.innerHeight,
+            outerWidth:       myWindow.outerWidth,
+            outerHeight:      myWindow.outerHeight,
+            devicePixelRatio: myWindow.devicePixelRatio
+        };
+    }
+
+    function getNetworkInfo() {
+        if (!('connection' in navigator)) return {};
+
+        const myConn = navigator.connection;        
+        return {
+            effectiveType: myConn.effectiveType,
+            downlink:      myConn.downlink,
+            rtt:           myConn.rtt,
+            saveData:      myConn.saveData
+        };
+    }
+
+
+}) (
