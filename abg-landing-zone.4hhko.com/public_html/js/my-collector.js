@@ -34,7 +34,7 @@
     function detectCSSEnabled() {
         const elem = document.getElementById('detectCSS');
         if (!elem) return null;
-        const fontSize = ExpressionNode.getComputedStyle(elem).fontSize;
+        const fontSize = window.getComputedStyle(elem).fontSize;
         return fontSize == '1px';
     }
 }) ();
