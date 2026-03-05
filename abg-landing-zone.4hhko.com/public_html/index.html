@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collector Test</title>
+
+    <script>
+        window._cq = window._cq || [];
+        _cq.push(['init', {
+            endpoint: 'https://collector.4hhko.com/collect.php',
+            respectConsent: false
+        }]);
+    </script>
+</head>
+<body>
+
+    <!-- JS detection - fires only if JS is disabled -->
+    <noscript>
+        <img src="https://collector.4hhko.com/collect.php?js=0" width="1" height="1" alt="">
+    </noscript>
+
+    <!-- Image detection flag - early in body, loads before collector fires -->
+    <img id="detectImageFlag"
+         src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+         width="1" height="1"
+         style="position:absolute;visibility:hidden;"
+         alt="">
+
+    <h1>Collector Test Page</h1>
+    <p>Open the console to see the payload output.</p>
+
+    <script src="collector.js"></script>
+    <script src="https://collector.4hhko.com/collector.js"></script>
+</body>
+</html>
