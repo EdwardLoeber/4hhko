@@ -9,7 +9,8 @@
         payload.cookieEnabled  = navigator.cookieEnabled;
         payload.language       = navigator.language;
         payload.allowsJS       = true;
-        payload.allowsImages  = detectImagesEnabled();
+        payload.allowsImages1  = detectImagesEnabled1();
+        payload.allowsImages2  = detectImagesEnabled2();
 
         if (debugging === true) {
             console.log(payload);
@@ -22,7 +23,14 @@
         }
     }
 
-    function detectImagesEnabled() {
+    function detectImagesEnabled1() {
+        const flag = document.getElementById('detectImageFlag');
+        if (!flag) return null;
+        return (flag.offsetWidth === 1 && flag.readyState === 'complete')
+            || (flag.offsetWidth === 1 && flag.readyState === undefined);
+    }
+
+    function detectImagesEnabled2() {
         try {
             const img = new Image();
             img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
