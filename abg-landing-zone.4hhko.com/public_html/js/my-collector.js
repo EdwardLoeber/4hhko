@@ -14,11 +14,6 @@
         payload.screen           = getScreenInfo();
         payload.window           = getWindowInfo();
         payload.network          = getNetworkInfo();
-
-
-        console.log(window.screen);
-
-
         
         if (debugging === true) {
             console.log(payload);
