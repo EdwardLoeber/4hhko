@@ -5,12 +5,15 @@
     window.addEventListener('load', collectStatic);
 
     function collectStatic() {
-        payload.userAgent      = navigator.userAgent;
-        payload.cookieEnabled  = navigator.cookieEnabled;
-        payload.language       = navigator.language;
-        payload.allowsJS       = true;
-        payload.allowsImages   = detectImagesEnabled();
-        payload.allowsCSS      = detectCSSEnabled();
+        payload.userAgent        = navigator.userAgent;
+        payload.cookieEnabled    = navigator.cookieEnabled;
+        payload.language         = navigator.language;
+        payload.allowsJS         = true;
+        payload.allowsImages     = detectImagesEnabled();
+        payload.allowsCSS        = detectCSSEnabled();
+        payload.screenWidth      = window.screen.width;
+        payload.screenHeight     = window.screen.height;
+        console.log(window.screen);
 
 
         
