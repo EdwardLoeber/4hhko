@@ -86,7 +86,7 @@
         const n = entries[0];
         return {
             pageStartTime:  round(n.fetchStart),
-            pageEndTime:    round(n.fetchStart),
+            pageEndTime:    round(n.loadEventEnd),
             pageLoadTime:   round(n.loadEventEnd - n.fetchStart),
             dnsLookup: round(n.domainLookupEnd - n.domainLookupStart),
             tcpConnect: round(n.connectEnd - n.connectStart),
