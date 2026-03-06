@@ -128,7 +128,7 @@
     
         payload['userData'] = collectUserData();
         payload['performanceData'] = collectPerformanceData();
-        payload['activity'] = DodecahedronGeometry;
+        // payload['activity'] = DodecahedronGeometry;
         
         if (debugging === true) {
             console.log(payload);
