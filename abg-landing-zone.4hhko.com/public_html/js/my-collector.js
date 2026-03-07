@@ -76,54 +76,39 @@
         }
     }
 
-    function collectPerformanceData() {
-        const entries = window.performance.getEntriesByType('navigation');
-        if (!entries.length) return {};
-        const n = entries[0];
-        return {
-            pageStartTime:  n.fetchStart,
-            pageEndTime:    n.loadEventEnd,
-            pageLoadTime:   n.loadEventEnd - n.fetchStart,
-            dnsLookup: n.domainLookupEnd - n.domainLookupStart,
-            tcpConnect: n.connectEnd - n.connectStart,
-            tlsHandshake: n.secureConnectionStart > 0 ? n.connectEnd - n.secureConnectionStart : 0,
-            ttfb: n.responseStart - n.requestStart,
-            download: n.responseEnd - n.responseStart,
-            domInteractive: n.domInteractive - n.fetchStart,
-            domComplete: n.domComplete - n.fetchStart,
-            loadEvent: n.loadEventEnd - n.fetchStart,
-            fetchTime: n.responseEnd - n.fetchStart,
-            transferSize: n.transferSize,
-            headerSize: n.transferSize - n.encodedBodySize,
-            // The whole timing object
-            raw: {
-                fetchStart: n.fetchStart,
-                domainLookupStart: n.domainLookupStart,
-                domainLookupEnd: n.domainLookupEnd,
-                connectStart: n.connectStart,
-                connectEnd: n.connectEnd,
-                secureConnectionStart: n.secureConnectionStart,
-                requestStart: n.requestStart,
-                responseStart: n.responseStart,
-                responseEnd: n.responseEnd,
-                domInteractive: n.domInteractive,
-                domContentLoadedEventStart: n.domContentLoadedEventStart,
-                domContentLoadedEventEnd: n.domContentLoadedEventEnd,
-                domComplete: n.domComplete,
-                loadEventStart: n.loadEventStart,
-                loadEventEnd: n.loadEventEnd,
-                type: n.type,
-                redirectCount: n.redirectCount
-      }
-        };
+    async function collectPerformanceData() {
+        return new Promise((resolve) => {
+            const observer = new PerformanceObserver((list) => {
+                const n = list.getEntries()[0];
+                observer.disconnect();
+                resolve({
+                    pageStartTime:  n.fetchStart,
+                    pageEndTime:    n.loadEventEnd,
+                    pageLoadTime:   n.loadEventEnd - n.fetchStart,
+                    dnsLookup:      n.domainLookupEnd - n.domainLookupStart,
+                    tcpConnect:     n.connectEnd - n.connectStart,
+                    tlsHandshake:   n.secureConnectionStart > 0 ? n.connectEnd - n.secureConnectionStart : 0,
+                    ttfb:           n.responseStart - n.requestStart,
+                    download:       n.responseEnd - n.responseStart,
+                    domInteractive: n.domInteractive - n.fetchStart,
+                    domComplete:    n.domComplete - n.fetchStart,
+                    loadEvent:      n.loadEventEnd - n.fetchStart,
+                    fetchTime:      n.responseEnd - n.fetchStart,
+                    transferSize:   n.transferSize,
+                    headerSize:     n.transferSize - n.encodedBodySize,
+                    raw:            JSON.parse(JSON.stringify(n))
+                });
+            });
+            observer.observe({ type: 'navigation', buffered: true });
+        });
     }
 
-    function collectStatic() {
+    async function collectStatic() {
         const payload = {};
         const debugging = true;
     
         payload['userData'] = collectUserData();
-        payload['performanceData'] = collectPerformanceData();
+        payload['performanceData'] = await collectPerformanceData();
         // payload['activity'] = DodecahedronGeometry;
         
         if (debugging === true) {
