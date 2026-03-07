@@ -147,7 +147,11 @@
 
     resourceObserver.observe({ type: 'resource', buffered: true });
     window.addEventListener('load', collectStatic);
-    window.addEventListener('visibilitychange', collectBehavioral);
+    window.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+            collectBehavioral();
+        }
+    });
     window.addEventListener('error', (e) => {
         errorCount += 1;
     })
