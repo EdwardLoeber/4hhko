@@ -128,6 +128,7 @@
         
         if (debugging === true) {
             console.log(payload);
+            performance.getEntries().forEach(entry => console.log(entry));
         } else {
             try {
                 navigator.sendBeacon('https://collector.4hhko.com/collect.php', JSON.stringify(payload));
