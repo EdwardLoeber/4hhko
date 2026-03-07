@@ -1,4 +1,19 @@
 (function () {
+
+    const resourceSummary = {
+        script:         { count: 0, totalSize: 0, totalDuration: 0 },
+        link:           { count: 0, totalSize: 0, totalDuration: 0 },
+        img:            { count: 0, totalSize: 0, totalDuration: 0 },
+        font:           { count: 0, totalSize: 0, totalDuration: 0 },
+        fetch:          { count: 0, totalSize: 0, totalDuration: 0 },
+        xmlhttprequest: { count: 0, totalSize: 0, totalDuration: 0 },
+        other:          { count: 0, totalSize: 0, totalDuration: 0 }
+    };
+
+    let errorCount = 0;
+    const payload = {};
+    const debugging = true;
+
     function detectImagesEnabled() {
         const flag = document.getElementById('detectImageFlag');
         if (!flag) return null;
@@ -102,15 +117,23 @@
             observer.observe({ type: 'navigation', buffered: true });
         });
     }
+
+    const resourceObserver = new PerformanceObserver((list) => {
+        list.getEntries().forEach((r) => {
+            const type = resourceSummary[r.initiatorType] ? r.initiatorType : 'other';
+            type.count++;
+            type.totalSize += r.transferSize || 0;
+            type.totalDuration += r.duration || 0;
+        });
+    });
     
-    async function collectStatic() {
-        const payload = {};
-        const debugging = true;
-    
+    async function collectStatic() {    
         payload['userData'] = collectUserData();
         payload['performanceData'] = await collectPerformanceData();
-        // payload['activity'] = DodecahedronGeometry;
-        
+    }
+
+    function collectBehavioral() {
+        payload['resourceSummary'] = resourceSummary;
         if (debugging === true) {
             console.log(payload);
         } else {
@@ -122,9 +145,9 @@
         }
     }
 
-    let errorCount = 0;
-
+    resourceObserver.observe({ type: 'resource', buffered: true });
     window.addEventListener('load', collectStatic);
+    window.addEventListener('visibilitychange', collectBehavioral);
     window.addEventListener('error', (e) => {
         errorCount += 1;
     })
