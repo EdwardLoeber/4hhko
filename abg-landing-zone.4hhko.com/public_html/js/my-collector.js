@@ -102,7 +102,7 @@
             observer.observe({ type: 'navigation', buffered: true });
         });
     }
-
+    
     async function collectStatic() {
         const payload = {};
         const debugging = true;
@@ -113,7 +113,7 @@
         
         if (debugging === true) {
             console.log(payload);
-            performance.getEntries().forEach(entry => console.log(JSON.stringify(entry)));
+            console.log(window.performance.getEntriesByType('navigation'));
         } else {
             try {
                 navigator.sendBeacon('https://collector.4hhko.com/collect.php', JSON.stringify(payload));
