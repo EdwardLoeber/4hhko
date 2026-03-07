@@ -113,7 +113,6 @@
         
         if (debugging === true) {
             console.log(payload);
-            console.log(window.performance.getEntriesByType('navigation'));
         } else {
             try {
                 navigator.sendBeacon('https://collector.4hhko.com/collect.php', JSON.stringify(payload));
