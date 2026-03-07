@@ -1,8 +1,4 @@
 (function () {
-    function round(n) {
-        return Math.round(n * 100) / 100;
-    }
-
     function detectImagesEnabled() {
         const flag = document.getElementById('detectImageFlag');
         if (!flag) return null;
@@ -85,37 +81,37 @@
         if (!entries.length) return {};
         const n = entries[0];
         return {
-            pageStartTime:  round(n.fetchStart),
-            pageEndTime:    round(n.loadEventEnd),
-            pageLoadTime:   round(n.loadEventEnd - n.fetchStart),
-            dnsLookup: round(n.domainLookupEnd - n.domainLookupStart),
-            tcpConnect: round(n.connectEnd - n.connectStart),
-            tlsHandshake: n.secureConnectionStart > 0 ? round(n.connectEnd - n.secureConnectionStart) : 0,
-            ttfb: round(n.responseStart - n.requestStart),
-            download: round(n.responseEnd - n.responseStart),
-            domInteractive: round(n.domInteractive - n.fetchStart),
-            domComplete: round(n.domComplete - n.fetchStart),
-            loadEvent: round(n.loadEventEnd - n.fetchStart),
-            fetchTime: round(n.responseEnd - n.fetchStart),
+            pageStartTime:  n.fetchStart,
+            pageEndTime:    n.loadEventEnd,
+            pageLoadTime:   n.loadEventEnd - n.fetchStart,
+            dnsLookup: n.domainLookupEnd - n.domainLookupStart,
+            tcpConnect: n.connectEnd - n.connectStart,
+            tlsHandshake: n.secureConnectionStart > 0 ? n.connectEnd - n.secureConnectionStart : 0,
+            ttfb: n.responseStart - n.requestStart,
+            download: n.responseEnd - n.responseStart,
+            domInteractive: n.domInteractive - n.fetchStart,
+            domComplete: n.domComplete - n.fetchStart,
+            loadEvent: n.loadEventEnd - n.fetchStart,
+            fetchTime: n.responseEnd - n.fetchStart,
             transferSize: n.transferSize,
             headerSize: n.transferSize - n.encodedBodySize,
             // The whole timing object
             raw: {
-                fetchStart: round(n.fetchStart),
-                domainLookupStart: round(n.domainLookupStart),
-                domainLookupEnd: round(n.domainLookupEnd),
-                connectStart: round(n.connectStart),
-                connectEnd: round(n.connectEnd),
-                secureConnectionStart: round(n.secureConnectionStart),
-                requestStart: round(n.requestStart),
-                responseStart: round(n.responseStart),
-                responseEnd: round(n.responseEnd),
-                domInteractive: round(n.domInteractive),
-                domContentLoadedEventStart: round(n.domContentLoadedEventStart),
-                domContentLoadedEventEnd: round(n.domContentLoadedEventEnd),
-                domComplete: round(n.domComplete),
-                loadEventStart: round(n.loadEventStart),
-                loadEventEnd: round(n.loadEventEnd),
+                fetchStart: n.fetchStart,
+                domainLookupStart: n.domainLookupStart,
+                domainLookupEnd: n.domainLookupEnd,
+                connectStart: n.connectStart,
+                connectEnd: n.connectEnd,
+                secureConnectionStart: n.secureConnectionStart,
+                requestStart: n.requestStart,
+                responseStart: n.responseStart,
+                responseEnd: n.responseEnd,
+                domInteractive: n.domInteractive,
+                domContentLoadedEventStart: n.domContentLoadedEventStart,
+                domContentLoadedEventEnd: n.domContentLoadedEventEnd,
+                domComplete: n.domComplete,
+                loadEventStart: n.loadEventStart,
+                loadEventEnd: n.loadEventEnd,
                 type: n.type,
                 redirectCount: n.redirectCount
       }
