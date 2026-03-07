@@ -118,12 +118,12 @@
         };
     }
 
-    async function collectStatic() {
+    function collectStatic() {
         const payload = {};
         const debugging = true;
     
         payload['userData'] = collectUserData();
-        payload['performanceData'] = await collectPerformanceData();
+        payload['performanceData'] = collectPerformanceData();
         // payload['activity'] = DodecahedronGeometry;
         
         if (debugging === true) {
