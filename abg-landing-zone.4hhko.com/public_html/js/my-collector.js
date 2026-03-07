@@ -121,9 +121,9 @@
     const resourceObserver = new PerformanceObserver((list) => {
         list.getEntries().forEach((r) => {
             const type = resourceSummary[r.initiatorType] ? r.initiatorType : 'other';
-            type.count++;
-            type.totalSize += r.transferSize || 0;
-            type.totalDuration += r.duration || 0;
+            resourceSummary[type].count++;
+            resourceSummary[type].totalSize += r.transferSize || 0;
+            resourceSummary[type].totalDuration += r.duration || 0;
         });
     });
     
