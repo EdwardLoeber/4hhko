@@ -118,17 +118,17 @@
         };
     }
 
-    function collectStatic() {
+    async function collectStatic() {
         const payload = {};
         const debugging = true;
     
         payload['userData'] = collectUserData();
-        payload['performanceData'] = collectPerformanceData();
+        payload['performanceData'] = await collectPerformanceData();
         // payload['activity'] = DodecahedronGeometry;
         
         if (debugging === true) {
             console.log(payload);
-            performance.getEntries().forEach(entry => console.log(entry));
+            performance.getEntries().forEach(entry => console.log(JSON.stringify(entry)));
         } else {
             try {
                 navigator.sendBeacon('https://collector.4hhko.com/collect.php', JSON.stringify(payload));
