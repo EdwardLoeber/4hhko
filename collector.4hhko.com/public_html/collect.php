@@ -9,7 +9,14 @@ $p = json_decode(file_get_contents('php://input'), true);
 if (!$p) { http_response_code(400); exit; }
 
 $dsn = 'pgsql:host=localhost;dbname=analytics';
-$db  = new PDO($dsn, 'femmy', 'applejacktwilightsparkle');
+try {
+    $db = new PDO($dsn, 'femmy', 'applejacktwilightsparkle', [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+    ]);
+} catch (PDOException $e) {
+    http_response_code(503);
+    exit;
+}
 
 if ($p['type'] === 'pageview') {
     $t   = $p['technographics'] ?? [];
@@ -28,12 +35,12 @@ if ($p['type'] === 'pageview') {
         $t['userAgent'], $t['language'],
         $t['cookiesEnabled'] ? 'true' : 'false',
         $t['jsEnabled']      ? 'true' : 'false',
-        $t['imagesEnabled']  ? 'true' : 'false',
+        isset($t['imagesEnabled']) && $t['imagesEnabled'] !== null ? ($t['imagesEnabled'] ? 'true' : 'false') : null,
         $t['cssEnabled']     ? 'true' : 'false',
         $t['screenWidth'], $t['screenHeight'],
         $t['viewportWidth'], $t['viewportHeight'],
         $t['network']['effectiveType'] ?? null,
-        $tim['pageStartTime'], $tim['pageEndTime'], $tim['totalLoadTime'],
+        $tim['pageStartTime'], $tim['pageEndTime'], $tim['pageLoadTime'],
         json_encode($t), json_encode($tim)
       ]);
 } elseif ($p['type'] === 'activity') {
@@ -54,6 +61,15 @@ if ($p['type'] === 'pageview') {
         $e['type']    ?? null, $e['message'] ?? null, $e['source'] ?? null,
         $e['line']    ?? null, $e['column']  ?? null, $e['stack']  ?? null,
         json_encode($e)
+      ]);
+
+} elseif ($p['type'] === 'event') {
+    $db->prepare('INSERT INTO events (session_id, url, timestamp, event_name, event_data)
+        VALUES (?,?,?,?,?)')
+      ->execute([
+        $p['session'], $p['url'], $p['timestamp'],
+        $p['event'] ?? null,
+        json_encode($p['data'] ?? [])
       ]);
 
 } elseif ($p['type'] === 'page_exit') {

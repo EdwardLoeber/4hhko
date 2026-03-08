@@ -3,6 +3,7 @@
 
   const config = {
     endpoint: '',
+    sessionEndpoint: '/session.php',
     enableVitals: true,
     enableErrors: true,
     sampleRate: 1.0,
@@ -15,6 +16,7 @@
   let blocked = false;           // Set true if consent/bot/sampling blocks collection
   const customData = {};           // Data set via set()
   let userId = null;             // Data set via identify()
+  let sessionId = null;          // Set once by initSession() on init
   const plugins = [];              // Registered plugins
   const reportedErrors = new Set();
   let errorCount = 0;
@@ -117,15 +119,25 @@
   }
 
   /**
-   * Generate or retrieve a session ID from sessionStorage.
+   * Return the session ID initialized by initSession().
    */
   function getSessionId() {
-    let sid = sessionStorage.getItem('_collector_sid');
-    if (!sid) {
-      sid = Math.random().toString(36).substring(2) + Date.now().toString(36);
-      sessionStorage.setItem('_collector_sid', sid);
+    return sessionId;
+  }
+
+  /**
+   * Fetch the session endpoint to get or create the server-set session cookie.
+   * Stores the returned ID in sessionId for all subsequent calls to getSessionId().
+   * Falls back to a client-generated ID if the request fails.
+   */
+  async function initSession() {
+    try {
+      const res = await fetch(config.sessionEndpoint, { credentials: 'same-origin' });
+      const data = await res.json();
+      sessionId = data.session;
+    } catch (e) {
+      sessionId = Math.random().toString(36).substring(2) + Date.now().toString(36);
     }
-    return sid;
   }
 
   /**
@@ -714,7 +726,7 @@
      * Initialize the collector with the given options.
      * Checks consent, bot detection, and sampling gates.
      */
-    init: function (options) {
+    init: async function (options) {
       if (initialized) {
         console.warn('[Collector] Already initialized');
         return;
@@ -754,6 +766,11 @@
 
       initialized = true;
       console.log('[Collector] Initialized', config);
+
+      // Fetch/create the server-set session cookie before anything else runs.
+      // All subsystems and beacons depend on getSessionId(), so this must
+      // resolve first. Falls back to a client-generated ID on failure.
+      await initSession();
 
       // Start subsystems
       if (config.enableVitals) initWebVitals();
