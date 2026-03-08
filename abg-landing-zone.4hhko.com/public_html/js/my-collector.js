@@ -6,7 +6,7 @@
     enableVitals: true,
     enableErrors: true,
     sampleRate: 1.0,
-    debug: false,
+    debug: true,
     respectConsent: false,
     detectBots: true
   };
