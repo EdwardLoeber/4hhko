@@ -1,48 +1,16 @@
-/**
- * collector-v9.js â€” Production-Ready Analytics Collector
- * CSE 135 - Module 10: Production Readiness
- *
- * The final collector, incorporating every feature from Modules 01-09:
- *
- *   - IIFE with full public API: init, track, set, identify, use
- *   - Command queue processing (_cq pattern)
- *   - Consent checking (GPC + consent cookie)
- *   - Bot detection (webdriver, headless UA, automation globals)
- *   - Sampling (configurable session-based sample rate)
- *   - Session management (sessionStorage-based session ID)
- *   - Technographics (browser, device, screen, network, preferences)
- *   - Navigation & resource timing
- *   - Web Vitals (LCP, CLS, INP via PerformanceObserver)
- *   - Error tracking (JS errors, promise rejections, resource failures)
- *   - Plugin system (use() to register extensions)
- *   - Retry queue (sessionStorage-based, capped at 50)
- *   - Time-on-page tracking (visible time only)
- *   - Debug mode (console logging instead of sending)
- *   - Self-measurement (performance.mark / performance.measure)
- *
- * Usage:
- *   <script>
- *     window._cq = window._cq || [];
- *     _cq.push(['init', { endpoint: '/collect' }]);
- *   </script>
- *   <script async src="collector-v9.js"></script>
- */
-
 (function () {
   'use strict';
 
-  // â”€â”€ Configuration Defaults â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const config = {
     endpoint: '',
     enableVitals: true,
     enableErrors: true,
     sampleRate: 1.0,
     debug: false,
-    respectConsent: true,
+    respectConsent: false,
     detectBots: true
   };
 
-  // â”€â”€ Internal State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   let initialized = false;
   let blocked = false;           // Set true if consent/bot/sampling blocks collection
   const customData = {};           // Data set via set()
@@ -50,16 +18,21 @@
   const plugins = [];              // Registered plugins
   const reportedErrors = new Set();
   let errorCount = 0;
-  const MAX_ERRORS = 10;
+  const MAX_ERRORS = 50;
 
-  // â”€â”€ Web Vitals State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const vitals = { lcp: null, cls: 0, inp: null };
+  const vitals = {
+      lcp: null,
+      cls: 0,
+      inpEntries: [],
+      _observers: [],
+      _clsSessionValue: 0,
+      _clsSessionEntries: [],
+      _clsMaxSession: 0
+  };
 
-  // â”€â”€ Time-on-Page State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   let pageShowTime = Date.now();
   let totalVisibleTime = 0;
 
-  // ── Activity Tracking State ───────────────────────────────────────────────
   const activityLog = [];
   const MAX_ACTIVITY = 500;
   let lastActivityTime = Date.now();
@@ -68,15 +41,8 @@
   let mouseMoveThrottle = 0;
   let scrollThrottle = 0;
   const THROTTLE_MS = 100;
+  const MAX_QUEUE_SIZE = 50;
 
-  // â”€â”€ Utility â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-  /**
-   * Round a number to two decimal places.
-   */
-  function round(n) {
-    return Math.round(n * 100) / 100;
-  }
 
   /**
    * Merge properties from src into dst (shallow).
@@ -87,8 +53,6 @@
     }
     return dst;
   }
-
-  // â”€â”€ Consent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
    * Check whether the user has granted analytics consent.
@@ -110,11 +74,9 @@
       }
     }
 
-    // No consent signal â€” default to false (GDPR opt-in model)
-    return false;
+    // No consent signal â€” default to true (opposite GDPR opt-in model)
+    return true;
   }
-
-  // â”€â”€ Bot Detection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
    * Detect common bots and automated browsers.
@@ -128,16 +90,11 @@
     const ua = navigator.userAgent;
     if (/HeadlessChrome|PhantomJS|Lighthouse/i.test(ua)) return true;
 
-    // Chrome UA without window.chrome object
-    if (/Chrome/.test(ua) && !window.chrome) return true;
-
     // Automation framework globals
     if (window._phantom || window.__nightmare || window.callPhantom) return true;
 
     return false;
   }
-
-  // â”€â”€ Sampling â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
    * Determine whether this session should be sampled.
@@ -159,8 +116,6 @@
     return val < config.sampleRate;
   }
 
-  // â”€â”€ Session Identity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
   /**
    * Generate or retrieve a session ID from sessionStorage.
    */
@@ -172,8 +127,6 @@
     }
     return sid;
   }
-
-  // â”€â”€ Technographics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
    * Collect network information via the Network Information API.
@@ -194,13 +147,9 @@
    * Tests with a 1x1 GIF data URI which decodes synchronously.
    */
   function detectImagesEnabled() {
-    try {
-      const img = new Image();
-      img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-      return img.complete && img.naturalWidth > 0;
-    } catch (e) {
-      return false;
-    }
+      const flag = document.getElementById('detectImageFlag');
+      if (!flag) return null;
+      return (flag.complete && flag.naturalWidth > 0);
   }
 
   /**
@@ -208,20 +157,21 @@
    * test rule and reading back the computed style.
    */
   function detectCssEnabled() {
-    try {
       const style = document.createElement('style');
-      style.textContent = '._c_probe{visibility:hidden!important}';
-      document.head.appendChild(style);
-      const el = document.createElement('div');
-      el.className = '_c_probe';
-      document.body.appendChild(el);
-      const applied = window.getComputedStyle(el).visibility === 'hidden';
-      document.body.removeChild(el);
-      document.head.removeChild(style);
-      return applied;
-    } catch (e) {
-      return false;
-    }
+      const element = document.createElement('div');
+
+      try {
+          style.textContent = '._c_detect{visibility:hidden!important};'
+          document.body.appendChild(style);
+          element.className = '_c_detect';
+          document.body.appendChild(element);
+          return window.getComputedStyle(element).visibility === 'hidden';
+      } catch (e) {
+          return false;
+      } finally {
+          style.parentNode?.removeChild(style);
+          element.parentNode?.removeChild(element);
+      }
   }
 
   /**
@@ -253,54 +203,37 @@
   /**
    * Extract key milestones from the Navigation Timing API.
    */
-  function getNavigationTiming() {
-    const entries = performance.getEntriesByType('navigation');
-    if (!entries.length) return {};
-    const n = entries[0];
-    return {
-      // Required explicit fields
-      pageStartTime: round(n.fetchStart),
-      pageEndTime: round(n.loadEventEnd),
-      totalLoadTime: round(n.loadEventEnd - n.fetchStart),
-      // Breakdown
-      dnsLookup: round(n.domainLookupEnd - n.domainLookupStart),
-      tcpConnect: round(n.connectEnd - n.connectStart),
-      tlsHandshake: n.secureConnectionStart > 0 ? round(n.connectEnd - n.secureConnectionStart) : 0,
-      ttfb: round(n.responseStart - n.requestStart),
-      download: round(n.responseEnd - n.responseStart),
-      domInteractive: round(n.domInteractive - n.fetchStart),
-      domComplete: round(n.domComplete - n.fetchStart),
-      loadEvent: round(n.loadEventEnd - n.fetchStart),
-      fetchTime: round(n.responseEnd - n.fetchStart),
-      transferSize: n.transferSize,
-      headerSize: n.transferSize - n.encodedBodySize,
-      // The whole timing object
-      raw: {
-        fetchStart: round(n.fetchStart),
-        domainLookupStart: round(n.domainLookupStart),
-        domainLookupEnd: round(n.domainLookupEnd),
-        connectStart: round(n.connectStart),
-        connectEnd: round(n.connectEnd),
-        secureConnectionStart: round(n.secureConnectionStart),
-        requestStart: round(n.requestStart),
-        responseStart: round(n.responseStart),
-        responseEnd: round(n.responseEnd),
-        domInteractive: round(n.domInteractive),
-        domContentLoadedEventStart: round(n.domContentLoadedEventStart),
-        domContentLoadedEventEnd: round(n.domContentLoadedEventEnd),
-        domComplete: round(n.domComplete),
-        loadEventStart: round(n.loadEventStart),
-        loadEventEnd: round(n.loadEventEnd),
-        type: n.type,
-        redirectCount: n.redirectCount
-      }
-    };
-  }
+    async function getNavigationTiming() {
+        return new Promise((resolve) => {
+            const observer = new PerformanceObserver((list) => {
+              const n = list.getEntries()[0];
+              observer.disconnect();
+              resolve({
+                  pageStartTime:  n.fetchStart,
+                  pageEndTime:    n.loadEventEnd,
+                  pageLoadTime:   n.loadEventEnd - n.fetchStart,
+                  dnsLookup:      n.domainLookupEnd - n.domainLookupStart,
+                  tcpConnect:     n.connectEnd - n.connectStart,
+                  tlsHandshake:   n.secureConnectionStart > 0 ? n.connectEnd - n.secureConnectionStart : 0,
+                  ttfb:           n.responseStart - n.requestStart,
+                  download:       n.responseEnd - n.responseStart,
+                  domInteractive: n.domInteractive - n.fetchStart,
+                  domComplete:    n.domComplete - n.fetchStart,
+                  loadEvent:      n.loadEventEnd - n.fetchStart,
+                  fetchTime:      n.responseEnd - n.fetchStart,
+                  transferSize:   n.transferSize,
+                  headerSize:     n.transferSize - n.encodedBodySize,
+                  raw:            JSON.parse(JSON.stringify(n))
+              });
+            });
+            observer.observe({ type: 'navigation', buffered: true });
+        });
+    }
 
   // â”€â”€ Resource Timing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
-   * Aggregate resource timing data by initiator type.
+   * NOTE SHOULD BE CALLED AFTER LOAD
    */
   function getResourceSummary() {
     const resources = performance.getEntriesByType('resource');
@@ -322,53 +255,103 @@
     return { totalResources: resources.length, byType: summary };
   }
 
-  // â”€â”€ Web Vitals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-  /**
-   * Initialize PerformanceObservers for LCP, CLS, and INP.
-   */
   function initWebVitals() {
-    // Largest Contentful Paint
-    try {
-      const lcpObs = new PerformanceObserver((list) => {
-        const entries = list.getEntries();
-        if (entries.length) {
-          vitals.lcp = round(entries[entries.length - 1].startTime);
-        }
-      });
-      lcpObs.observe({ type: 'largest-contentful-paint', buffered: true });
-    } catch (e) { /* LCP not supported */ }
+      // ── Largest Contentful Paint ──────────────────────────────────────────
+      // LCP is only finalized on page hide/visibility change, so we force
+      // takeRecords() at that point to ensure we capture the last entry.
+      try {
+          const lcpObs = new PerformanceObserver((list) => {
+              const entries = list.getEntries();
+              if (entries.length) {
+                  vitals.lcp = entries[entries.length - 1].startTime;
+              }
+          });
+          lcpObs.observe({ type: 'largest-contentful-paint', buffered: true });
+          vitals._observers.push(lcpObs);
 
-    // Cumulative Layout Shift
-    try {
-      const clsObs = new PerformanceObserver((list) => {
-        list.getEntries().forEach((entry) => {
-          if (!entry.hadRecentInput) {
-            vitals.cls = round(vitals.cls + entry.value);
-          }
-        });
-      });
-      clsObs.observe({ type: 'layout-shift', buffered: true });
-    } catch (e) { /* CLS not supported */ }
+          addEventListener('visibilitychange', () => {
+              if (document.visibilityState === 'hidden') {
+                  lcpObs.takeRecords(); // flush any pending LCP entry
+                  lcpObs.disconnect();
+              }
+          }, { once: true });
+      } catch (e) { /* LCP not supported */ }
 
-    // Interaction to Next Paint
-    try {
-      const inpObs = new PerformanceObserver((list) => {
-        list.getEntries().forEach((entry) => {
-          if (vitals.inp === null || entry.duration > vitals.inp) {
-            vitals.inp = round(entry.duration);
-          }
-        });
-      });
-      inpObs.observe({ type: 'event', buffered: true, durationThreshold: 16 });
-    } catch (e) { /* INP not supported */ }
+      // ── Cumulative Layout Shift ───────────────────────────────────────────
+      // Implements session windowing per spec:
+      //   - New session starts after ≥1s gap, capped at 5s max duration.
+      //   - CLS = the largest session window value seen.
+      try {
+          const SESSION_GAP    = 1000; // ms — gap that ends a session window
+          const SESSION_MAX    = 5000; // ms — max duration of one session window
+
+          const clsObs = new PerformanceObserver((list) => {
+              list.getEntries().forEach((entry) => {
+                  if (entry.hadRecentInput) return;
+
+                  const lastEntry = vitals._clsSessionEntries.at(-1);
+                  const sessionStart = vitals._clsSessionEntries[0];
+
+                  const gapExceeded = lastEntry &&
+                      (entry.startTime - lastEntry.startTime) > SESSION_GAP;
+                  const durationExceeded = sessionStart &&
+                      (entry.startTime - sessionStart.startTime) > SESSION_MAX;
+
+                  if (gapExceeded || durationExceeded) {
+                      // Commit current session, start a new one
+                      vitals._clsSessionValue = 0;
+                      vitals._clsSessionEntries = [];
+                  }
+
+                  vitals._clsSessionEntries.push(entry);
+                  vitals._clsSessionValue += entry.value;
+
+                  if (vitals._clsSessionValue > vitals._clsMaxSession) {
+                      vitals._clsMaxSession = vitals._clsSessionValue;
+                      vitals.cls = vitals._clsMaxSession;
+                  }
+              });
+          });
+          clsObs.observe({ type: 'layout-shift', buffered: true });
+          vitals._observers.push(clsObs);
+      } catch (e) { /* CLS not supported */ }
+
+      // ── Interaction to Next Paint ─────────────────────────────────────────
+      // durationThreshold: 40ms — aligns with INP "needs improvement" boundary
+      // and avoids noise from trivially fast events.
+      try {
+          const inpObs = new PerformanceObserver((list) => {
+              list.getEntries().forEach((entry) => {
+                  vitals.inpEntries.push(entry.duration);
+              });
+          });
+          inpObs.observe({ type: 'event', buffered: true, durationThreshold: 40 });
+          vitals._observers.push(inpObs);
+      } catch (e) { /* INP not supported */ }
   }
 
-  /**
-   * Return the current vitals snapshot.
-   */
+  // Returns a snapshot of current vitals.
+  // INP is the 98th-percentile interaction duration, matching the spec.
+  // Call this on visibilitychange:'hidden' or pagehide for the most accurate read.
   function getWebVitals() {
-    return { lcp: vitals.lcp, cls: vitals.cls, inp: vitals.inp };
+      let inp = null;
+      if (vitals.inpEntries.length) {
+          const sorted = [...vitals.inpEntries].sort((a, b) => a - b);
+          // p98 index: ceil(n * 0.98) - 1, clamped to valid range
+          const index = Math.min(
+              Math.ceil(sorted.length * 0.98) - 1,
+              sorted.length - 1
+          );
+          inp = sorted[index];
+      }
+      return { lcp: vitals.lcp, cls: vitals.cls, inp };
+  }
+
+  // NOTE INCLUDE IN FINAL CALL
+  // Cleanly tear down all observers (useful in SPAs on route change).
+  function disconnectWebVitals() {
+      vitals._observers.forEach((obs) => obs.disconnect());
+      vitals._observers = [];
   }
 
   // â”€â”€ Error Tracking â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -457,7 +440,8 @@
   function onActivity() {
     const now = Date.now();
     if (idleStart !== null) {
-      const idleDuration = now - idleStart;
+      const idleDuration = now - lastActivityTime;
+      pushActivity({ type: 'idle_start', start: lastActivityTime, duration: idleDuration });
       pushActivity({ type: 'idle_end', end: now, duration: idleDuration });
       idleStart = null;
     }
@@ -539,7 +523,7 @@
   function queueForRetry(payload) {
     try {
       const queue = JSON.parse(sessionStorage.getItem('_collector_retry') || '[]');
-      if (queue.length >= 50) return;
+      if (queue.length >= MAX_QUEUE_SIZE) return;
       queue.push(payload);
       sessionStorage.setItem('_collector_retry', JSON.stringify(queue));
     } catch (e) { /* sessionStorage unavailable or full */ }
@@ -565,21 +549,21 @@
    * for retry. In debug mode, logs to console instead.
    */
   function send(payload) {
-    // Self-measurement
-    const markSupported = typeof performance.mark === 'function';
-    if (markSupported) {
-      performance.mark('collector_send_start');
-    }
-
     // Debug mode: log instead of sending
     if (config.debug) {
       console.log('[Collector] Debug payload:', payload);
       return;
     }
-
+    
     if (!config.endpoint) {
       console.warn('[Collector] No endpoint configured');
       return;
+    }
+
+    // Self-measurement
+    const markSupported = typeof performance.mark === 'function';
+    if (markSupported) {
+      performance.mark('collector_send_start');
     }
 
     const json = JSON.stringify(payload);
@@ -620,7 +604,7 @@
   /**
    * Build and send the full pageview payload.
    */
-  function collect(type) {
+  async function collect(type) {
     let payload = {
       type: type || 'pageview',
       url: window.location.href,
@@ -630,7 +614,7 @@
       timestamp: new Date().toISOString(),
       session: getSessionId(),
       technographics: getTechnographics(),
-      timing: getNavigationTiming(),
+      timing: await getNavigationTiming().catch(() => {return {}}),
       resources: getResourceSummary(),
       vitals: getWebVitals(),
       errorCount: errorCount,
