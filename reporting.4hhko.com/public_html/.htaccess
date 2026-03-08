@@ -1,5 +1,8 @@
 Options -MultiViews
 RewriteEngine On
 
+# Redirect bare root to login
+RewriteRule ^$ /login.php [R=302,L]
+
 # Route all /api/* requests to api.php (preserve query string)
 RewriteRule ^api/(.*)$ api.php [QSA,L]

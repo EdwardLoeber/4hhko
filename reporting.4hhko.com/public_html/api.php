@@ -35,12 +35,19 @@ $resource = $parts[1];
 $id       = $parts[2] ?? null;
 $method   = $_SERVER['REQUEST_METHOD'];
 
+if ($id !== null && !ctype_digit($id)) {
+    http_response_code(400);
+    echo json_encode(['error' => 'ID must be a positive integer']);
+    exit;
+}
+
 // ── Resource Whitelist ────────────────────────────────────────────────────
 $tableMap = [
     'pageviews'  => 'pageviews',
     'activity'   => 'activity_events',
     'errors'     => 'errors',
     'page_exits' => 'page_exits',
+    'events'     => 'events',
 ];
 
 if (!array_key_exists($resource, $tableMap)) {
