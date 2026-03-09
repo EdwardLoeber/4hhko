@@ -41,6 +41,39 @@ if ($id !== null && !ctype_digit($id)) {
     exit;
 }
 
+// ── Special: Login ────────────────────────────────────────────────────────
+if ($resource === 'login') {
+    if ($method !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed']);
+        exit;
+    }
+    $body  = json_decode(file_get_contents('php://input'), true);
+    $email = trim($body['email'] ?? '');
+    $pass  = $body['password'] ?? '';
+    if (!$email || !$pass) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Email and password are required']);
+        exit;
+    }
+    $stmt = $db->prepare('SELECT id, password_hash FROM users WHERE email = ?');
+    $stmt->execute([$email]);
+    $user = $stmt->fetch();
+    if (!$user || !password_verify($pass, $user['password_hash'])) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Invalid credentials']);
+        exit;
+    }
+    session_name('sid');
+    session_start();
+    session_regenerate_id(true);   // prevent session fixation
+    $_SESSION['authenticated'] = true;
+    $_SESSION['user_id']       = $user['id'];
+    http_response_code(200);
+    echo json_encode(['ok' => true]);
+    exit;
+}
+
 // ── Resource Whitelist ────────────────────────────────────────────────────
 $tableMap = [
     'pageviews'  => 'pageviews',

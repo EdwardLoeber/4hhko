@@ -1,24 +1,9 @@
 <?php
+session_name('sid');
 session_start();
-
-const ADMIN_USER = 'admin';
-const ADMIN_PASS = 'admin123';
-
 if (!empty($_SESSION['authenticated'])) {
     header('Location: /dashboard.php');
     exit;
-}
-
-$error = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $user = $_POST['username'] ?? '';
-    $pass = $_POST['password'] ?? '';
-    if ($user === ADMIN_USER && $pass === ADMIN_PASS) {
-        $_SESSION['authenticated'] = true;
-        header('Location: /dashboard.php');
-        exit;
-    }
-    $error = 'Invalid username or password.';
 }
 ?>
 <!DOCTYPE html>
@@ -47,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         h1 { font-size: 22px; margin-bottom: 24px; color: #111; }
         label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #444; }
-        input[type=text], input[type=password] {
+        input[type=email], input[type=password] {
             width: 100%;
             padding: 10px 12px;
             border: 1px solid #ccc;
@@ -67,6 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             cursor: pointer;
         }
         button:hover { background: #357abd; }
+        button:disabled { background: #a0b4d0; cursor: not-allowed; }
         .error {
             background: #fdecea;
             color: #c0392b;
@@ -75,22 +61,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 10px 12px;
             font-size: 13px;
             margin-bottom: 16px;
+            display: none;
         }
     </style>
 </head>
 <body>
     <div class="card">
         <h1>4hhko Analytics</h1>
-        <?php if ($error): ?>
-            <div class="error"><?= htmlspecialchars($error) ?></div>
-        <?php endif; ?>
-        <form method="POST">
-            <label for="username">Username</label>
-            <input type="text" id="username" name="username" autocomplete="username" required>
+        <div class="error" id="errorMsg"></div>
+        <form id="loginForm">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" autocomplete="username" required>
             <label for="password">Password</label>
             <input type="password" id="password" name="password" autocomplete="current-password" required>
-            <button type="submit">Sign In</button>
+            <button type="submit" id="submitBtn">Sign In</button>
         </form>
     </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const btn     = document.getElementById('submitBtn');
+            const errorEl = document.getElementById('errorMsg');
+            errorEl.style.display = 'none';
+            btn.disabled  = true;
+            btn.textContent = 'Signing in...';
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        email:    document.getElementById('email').value,
+                        password: document.getElementById('password').value
+                    })
+                });
+
+                if (res.ok) {
+                    window.location.href = '/dashboard.php';
+                } else {
+                    const data = await res.json();
+                    errorEl.textContent  = data.error || 'Login failed.';
+                    errorEl.style.display = 'block';
+                    btn.disabled    = false;
+                    btn.textContent = 'Sign In';
+                }
+            } catch (err) {
+                errorEl.textContent  = 'Network error. Please try again.';
+                errorEl.style.display = 'block';
+                btn.disabled    = false;
+                btn.textContent = 'Sign In';
+            }
+        });
+    </script>
 </body>
 </html>
