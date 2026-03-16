@@ -400,9 +400,9 @@ if ($resource === 'insights') {
         'memory'         => $memory,
         'color_scheme'   => $colorScheme,
     ]);
-    } catch (PDOException $e) {
+    } catch (\Throwable $e) {
         http_response_code(500);
-        echo json_encode(['error' => 'Query failed: ' . $e->getMessage()]);
+        echo json_encode(['error' => $e->getMessage(), 'type' => get_class($e), 'line' => $e->getLine()]);
     }
     exit;
 }

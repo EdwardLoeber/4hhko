@@ -221,7 +221,10 @@ async function init() {
     initTabs();
     try {
         const res  = await fetch('/api/insights', { credentials: 'same-origin' });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.error || `HTTP ${res.status}`);
+        }
         const data = await res.json();
 
         // Stats row
