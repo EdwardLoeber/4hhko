@@ -124,7 +124,14 @@ function renderTables(category, data) {
         : '';
 
     for (const [name, rows] of entries) {
-        const tableHtml = name === 'activity_events' ? buildActivityTable(rows) : buildTable(rows);
+        let tableHtml;
+        if (name === 'activity_events') {
+            tableHtml = buildActivityTable(rows);
+        } else if (name === 'events' && !rows.length) {
+            tableHtml = '<p class="status-msg">No custom events recorded yet. Emit them with <code>_cq.push([\'track\', \'name\', data])</code>.</p>';
+        } else {
+            tableHtml = buildTable(rows);
+        }
         if (multiple) {
             html += `<div style="min-width:0">
                 <p class="section-label">${escHtml(name)} (${rows.length})</p>
@@ -172,43 +179,51 @@ function countByField(rows, field) {
 }
 
 function renderTrafficCharts(data) {
-    const pvRows = data.pageviews   || [];
-    const peRows = data.page_exits  || [];
+    const pvRows = data.pageviews  || [];
 
-    // Chart 1: pageviews per day
-    const byDay = countByDate(pvRows, 'timestamp');
-    const days  = Object.keys(byDay).sort();
-    document.getElementById('chart1-label-traffic').textContent = 'Pageviews Per Day';
+    // Chart 1: Avg page load time per day (ms) — industry KPI for performance
+    const sumDay = {}, cntDay = {};
+    for (const r of pvRows) {
+        const day = r.timestamp ? String(r.timestamp).substring(0, 10) : null;
+        const t   = parseFloat(r.total_load_time);
+        if (!day || isNaN(t)) continue;
+        sumDay[day] = (sumDay[day] || 0) + t;
+        cntDay[day] = (cntDay[day] || 0) + 1;
+    }
+    const days = Object.keys(sumDay).sort();
+    const avgs = days.map(d => Math.round(sumDay[d] / cntDay[d]));
+    document.getElementById('chart1-label-traffic').textContent = 'Avg Page Load Time (ms) Per Day';
     makeChart('chart1-traffic', {
         type: 'line',
         data: {
             labels: days,
-            datasets: [{ label: 'Pageviews', data: days.map(d => byDay[d]),
+            datasets: [{ label: 'Avg Load (ms)', data: avgs,
                 borderColor: '#4a90e2', backgroundColor: 'rgba(74,144,226,0.1)',
                 tension: 0.3, fill: true, pointRadius: 3 }]
         },
-        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
     });
 
-    // Chart 2: top 10 URLs
-    const byUrl  = countByField(pvRows, 'url');
-    const sorted = Object.entries(byUrl).sort((a, b) => b[1] - a[1]).slice(0, 10);
-    const labels = sorted.map(([url]) => url.replace(/^https?:\/\/[^/]+/, '') || '/');
-    document.getElementById('chart2-label-traffic').textContent = 'Top 10 URLs';
+    // Chart 2: Network type distribution (doughnut) — shows visitor connection quality
+    const netCounts  = countByField(pvRows, 'network_type');
+    const netEntries = Object.entries(netCounts).sort((a, b) => b[1] - a[1]);
+    const NET_COLORS = { '4g': '#27ae60', '3g': '#f39c12', '2g': '#e74c3c', 'slow-2g': '#c0392b', 'wifi': '#3498db' };
+    document.getElementById('chart2-label-traffic').textContent = 'Network Type Distribution';
     makeChart('chart2-traffic', {
-        type: 'bar',
+        type: 'doughnut',
         data: {
-            labels,
-            datasets: [{ label: 'Pageviews', data: sorted.map(([, n]) => n), backgroundColor: '#4a90e2' }]
+            labels: netEntries.map(([k]) => k || 'unknown'),
+            datasets: [{ data: netEntries.map(([, n]) => n),
+                backgroundColor: netEntries.map(([k]) => NET_COLORS[k] || '#95a5a6') }]
         },
-        options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+        options: { plugins: { legend: { position: 'right', labels: { font: { size: 11 } } } } }
     });
 }
 
 function renderErrorCharts(data) {
     const rows = data.errors || [];
 
-    // Chart 1: errors per day
+    // Chart 1: Errors per day — shows error rate trend over time
     const byDay = countByDate(rows, 'timestamp');
     const days  = Object.keys(byDay).sort();
     document.getElementById('chart1-label-errors').textContent = 'Errors Per Day';
@@ -221,18 +236,19 @@ function renderErrorCharts(data) {
         options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
     });
 
-    // Chart 2: top error messages (truncated)
-    const byMsg  = countByField(rows, 'message');
-    const sorted = Object.entries(byMsg).sort((a, b) => b[1] - a[1]).slice(0, 10);
-    const labels = sorted.map(([msg]) => msg.length > 40 ? msg.substring(0, 40) + '…' : msg);
-    document.getElementById('chart2-label-errors').textContent = 'Top Error Messages';
+    // Chart 2: Error type distribution (doughnut) — unhandled-error vs unhandled-rejection etc.
+    const byType     = countByField(rows, 'type');
+    const typeEntries = Object.entries(byType).sort((a, b) => b[1] - a[1]);
+    const ERR_COLORS  = ['#c0392b', '#e74c3c', '#e67e22', '#f39c12', '#95a5a6', '#7f8c8d'];
+    document.getElementById('chart2-label-errors').textContent = 'Error Type Distribution';
     makeChart('chart2-errors', {
-        type: 'bar',
+        type: 'doughnut',
         data: {
-            labels,
-            datasets: [{ label: 'Count', data: sorted.map(([, n]) => n), backgroundColor: '#c0392b' }]
+            labels: typeEntries.map(([t]) => t || 'unknown'),
+            datasets: [{ data: typeEntries.map(([, n]) => n),
+                backgroundColor: typeEntries.map((_, i) => ERR_COLORS[i % ERR_COLORS.length]) }]
         },
-        options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+        options: { plugins: { legend: { position: 'right', labels: { font: { size: 11 } } } } }
     });
 }
 
@@ -257,13 +273,38 @@ function unpackActivityEvents(aeRows) {
 }
 
 function renderEngagementCharts(data) {
-    const aeRows = data.activity_events || [];
-
-    // Unpack individual sub-events from the events JSONB array
+    const aeRows    = data.activity_events || [];
     const allEvents = unpackActivityEvents(aeRows);
 
-    // Chart 1: individual activity events per day
-    // Sub-events use `t` (epoch ms); fall back to row timestamp if absent
+    const TYPE_COLORS = {
+        click:      '#e74c3c',
+        scroll:     '#3498db',
+        mousemove:  '#95a5a6',
+        keydown:    '#9b59b6',
+        keyup:      '#8e44ad',
+        idle_start: '#e67e22',
+        idle_end:   '#f39c12'
+    };
+
+    // Chart 1: Interaction type ratio (doughnut) — click vs scroll vs keyboard vs idle
+    const byType = {};
+    for (const ev of allEvents) {
+        const t = ev.type || 'unknown';
+        byType[t] = (byType[t] || 0) + 1;
+    }
+    const typeEntries = Object.entries(byType).sort((a, b) => b[1] - a[1]);
+    document.getElementById('chart1-label-engagement').textContent = 'Interaction Type Ratio';
+    makeChart('chart1-engagement', {
+        type: 'doughnut',
+        data: {
+            labels: typeEntries.map(([t]) => t),
+            datasets: [{ data: typeEntries.map(([, n]) => n),
+                backgroundColor: typeEntries.map(([t]) => TYPE_COLORS[t] || '#27ae60') }]
+        },
+        options: { plugins: { legend: { position: 'right', labels: { font: { size: 11 } } } } }
+    });
+
+    // Chart 2: Activity events per day (line) — shows engagement volume trend
     const byDay = {};
     for (const ev of allEvents) {
         let day;
@@ -277,8 +318,8 @@ function renderEngagementCharts(data) {
         byDay[day] = (byDay[day] || 0) + 1;
     }
     const days = Object.keys(byDay).filter(d => d !== 'unknown').sort();
-    document.getElementById('chart1-label-engagement').textContent = 'Individual Activity Events Per Day';
-    makeChart('chart1-engagement', {
+    document.getElementById('chart2-label-engagement').textContent = 'Activity Events Per Day';
+    makeChart('chart2-engagement', {
         type: 'line',
         data: {
             labels: days,
@@ -287,34 +328,6 @@ function renderEngagementCharts(data) {
                 tension: 0.3, fill: true, pointRadius: 3 }]
         },
         options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
-    });
-
-    // Chart 2: breakdown of sub-event types
-    // Types from collector: mousemove, click, scroll, keydown, keyup, idle_start, idle_end
-    const TYPE_COLORS = {
-        click:      '#e74c3c',
-        scroll:     '#3498db',
-        mousemove:  '#95a5a6',
-        keydown:    '#9b59b6',
-        keyup:      '#8e44ad',
-        idle_start: '#e67e22',
-        idle_end:   '#f39c12'
-    };
-    const byType = {};
-    for (const ev of allEvents) {
-        const t = ev.type || 'unknown';
-        byType[t] = (byType[t] || 0) + 1;
-    }
-    const sorted = Object.entries(byType).sort((a, b) => b[1] - a[1]);
-    const typeColors = sorted.map(([t]) => TYPE_COLORS[t] || '#27ae60');
-    document.getElementById('chart2-label-engagement').textContent = 'Event Type Breakdown';
-    makeChart('chart2-engagement', {
-        type: 'bar',
-        data: {
-            labels: sorted.map(([t]) => t),
-            datasets: [{ label: 'Count', data: sorted.map(([, n]) => n), backgroundColor: typeColors }]
-        },
-        options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
     });
 }
 
