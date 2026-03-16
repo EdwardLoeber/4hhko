@@ -154,7 +154,8 @@ if ($resource === 'reports') {
 if ($resource === 'comments') {
     if ($method === 'GET') {
         $stmt = $db->prepare(
-            "SELECT category, comment, updated_at FROM report_comments WHERE user_id = ?"
+            "SELECT category, comment, updated_at FROM report_comments
+             WHERE user_id = ? AND export_url IS NULL"
         );
         $stmt->execute([$currentUserId]);
         echo json_encode($stmt->fetchAll());
@@ -172,13 +173,17 @@ if ($resource === 'comments') {
             echo json_encode(['error' => 'Invalid category']);
             exit;
         }
-        $stmt = $db->prepare(
-            "INSERT INTO report_comments (user_id, category, comment, updated_at)
-             VALUES (?, ?, ?, NOW())
-             ON CONFLICT (user_id, category) DO UPDATE
-             SET comment = EXCLUDED.comment, updated_at = NOW()"
+        $upd = $db->prepare(
+            "UPDATE report_comments SET comment = ?, updated_at = NOW()
+             WHERE user_id = ? AND category = ? AND export_url IS NULL"
         );
-        $stmt->execute([$currentUserId, $category, $comment]);
+        $upd->execute([$comment, $currentUserId, $category]);
+        if ($upd->rowCount() === 0) {
+            $db->prepare(
+                "INSERT INTO report_comments (user_id, category, comment, updated_at)
+                 VALUES (?, ?, ?, NOW())"
+            )->execute([$currentUserId, $category, $comment]);
+        }
         echo json_encode(['ok' => true]);
     } else {
         http_response_code(405);
