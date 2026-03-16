@@ -34,14 +34,33 @@ async function saveComment(category, text) {
 }
 
 async function exportReport(category) {
-    const btn  = document.getElementById(`export-btn-${category}`);
-    const link = document.getElementById(`export-link-${category}`);
-    if (btn) { btn.disabled = true; btn.textContent = 'Exporting...'; }
+    const btn     = document.getElementById(`export-btn-${category}`);
+    const link    = document.getElementById(`export-link-${category}`);
+    const comment = document.getElementById(`comment-${category}`)?.value || '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Exporting…'; }
     try {
-        const res = await fetch(`/export.php?category=${encodeURIComponent(category)}`, {
-            credentials: 'same-origin'
+        // Capture every visible chart canvas in this section as a base64 PNG
+        const section = document.getElementById(`section-${category}`);
+        const charts  = [];
+        if (section) {
+            section.querySelectorAll('.chart-card').forEach(card => {
+                if (card.style.display === 'none') return;  // skip empty hidden slots
+                const canvas = card.querySelector('canvas');
+                const label  = card.querySelector('h3')?.textContent?.trim() || '';
+                if (canvas) charts.push({ label, img: canvas.toDataURL('image/png') });
+            });
+        }
+
+        const res = await fetch('/export.php', {
+            method:      'POST',
+            credentials: 'same-origin',
+            headers:     { 'Content-Type': 'application/json' },
+            body:        JSON.stringify({ category, comment, charts }),
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.error || `HTTP ${res.status}`);
+        }
         const data = await res.json();
         if (link) {
             link.href          = data.url;

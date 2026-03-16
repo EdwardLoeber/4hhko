@@ -222,6 +222,7 @@ if ($resource === 'users') {
         return $s === '' ? [] : explode(',', $s);
     };
 
+    try {
     switch ($method) {
         case 'GET':
             $rows = $db->query("SELECT id, email, role, sections FROM users ORDER BY id")->fetchAll();
@@ -297,14 +298,19 @@ if ($resource === 'users') {
                 echo json_encode(['error' => 'DELETE requires a numeric id']);
                 exit;
             }
-            $stmt = $db->prepare("DELETE FROM users WHERE id = ?");
-            $stmt->execute([$id]);
+            // Remove FK-linked rows first to avoid constraint violations
+            $db->prepare("DELETE FROM report_comments WHERE user_id = ?")->execute([$id]);
+            $db->prepare("DELETE FROM users WHERE id = ?")->execute([$id]);
             http_response_code(204);
             break;
 
         default:
             http_response_code(405);
             echo json_encode(['error' => 'Method not allowed']);
+    }
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        echo json_encode(['error' => $e->getMessage()]);
     }
     exit;
 }

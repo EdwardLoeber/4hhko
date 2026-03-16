@@ -79,18 +79,6 @@ $role = CURRENT_USER_ROLE;
         <div class="stat-card"><div class="val" id="stat-last">—</div><div class="lbl">Last Access</div></div>
     </div>
 
-    <?php if ($role !== 'viewer'): ?>
-    <div class="comment-section">
-        <label for="insight-comment">Analyst Comment</label>
-        <textarea id="insight-comment" placeholder="Add your insights analysis..."></textarea>
-        <div class="export-row">
-            <span class="comment-status" id="insight-comment-status"></span>
-            <button type="button" id="insight-export-btn" onclick="exportInsightsPDF()">Export PDF</button>
-            <a id="insight-export-link" href="#" target="_blank" style="display:none">Open Export</a>
-        </div>
-    </div>
-    <?php endif; ?>
-
     <div class="tab-bar">
         <button class="tab-btn active" data-tab="users">User Overview</button>
         <button class="tab-btn" data-tab="technical">Technical Profile</button>
@@ -163,6 +151,18 @@ $role = CURRENT_USER_ROLE;
             </table>
         </div>
     </div>
+
+    <?php if ($role !== 'viewer'): ?>
+    <div class="comment-section" style="margin-top:0.75rem;border-top:1px solid var(--pico-muted-border-color);padding-top:0.75rem">
+        <label for="insight-comment">Analyst Comment</label>
+        <textarea id="insight-comment" placeholder="Add your insights analysis..."></textarea>
+        <div class="export-row">
+            <span class="comment-status" id="insight-comment-status"></span>
+            <button type="button" id="insight-export-btn" onclick="exportInsightsPDF()">Export PDF</button>
+            <a id="insight-export-link" href="#" target="_blank" style="display:none">Open Export</a>
+        </div>
+    </div>
+    <?php endif; ?>
 </main>
 
 <script src="/js/insights.js"></script>
