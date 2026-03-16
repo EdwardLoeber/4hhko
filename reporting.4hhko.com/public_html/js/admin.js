@@ -11,11 +11,16 @@ const SECTIONS = ['traffic', 'errors', 'engagement'];
 
 async function apiUsers(method, id, body) {
     const url = id ? `/api/users/${id}` : '/api/users';
+    // ModSecurity blocks PUT/DELETE; tunnel them through POST with override header
+    const wireMethod = (method === 'PUT' || method === 'DELETE') ? 'POST' : method;
+    const headers = {};
+    if (method === 'PUT' || method === 'DELETE') headers['X-HTTP-Method-Override'] = method;
+    if (body || method === 'DELETE') headers['Content-Type'] = 'application/json';
     const res = await fetch(url, {
-        method,
+        method:      wireMethod,
         credentials: 'same-origin',
-        headers: body ? { 'Content-Type': 'application/json' } : {},
-        body:    body ? JSON.stringify(body) : undefined
+        headers,
+        body: body ? JSON.stringify(body) : (method === 'DELETE' ? '{}' : undefined)
     });
     if (!res.ok && res.status !== 204) {
         const data = await res.json().catch(() => ({}));

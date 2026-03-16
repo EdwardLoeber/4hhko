@@ -34,6 +34,15 @@ $resource = $parts[1];
 $id       = $parts[2] ?? null;
 $method   = $_SERVER['REQUEST_METHOD'];
 
+// Allow tunneling PUT/DELETE through POST via X-HTTP-Method-Override header
+// (ModSecurity blocks PUT/DELETE by default under OWASP CRS)
+if ($method === 'POST' && !empty($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'])) {
+    $override = strtoupper(trim($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE']));
+    if (in_array($override, ['PUT', 'DELETE', 'PATCH'], true)) {
+        $method = $override;
+    }
+}
+
 // ── Special: Login ────────────────────────────────────────────────────────
 if ($resource === 'login') {
     if ($method !== 'POST') {

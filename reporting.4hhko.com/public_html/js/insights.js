@@ -253,9 +253,19 @@ async function exportInsightsPDF() {
         const origDisplay = [...panels].map(p => p.style.display);
         panels.forEach(p => { p.style.display = 'block'; });
 
-        // Force Chart.js to recalculate canvas sizes, then wait one frame
-        Object.values(ci).forEach(c => { try { c.resize(); } catch (_) {} });
-        await new Promise(r => setTimeout(r, 60));
+        // Force Chart.js to recalculate canvas sizes on newly-visible panels
+        // Explicitly set dimensions first so hidden canvases aren't 0x0
+        Object.values(ci).forEach(c => {
+            try {
+                const canvas = c.canvas;
+                if (canvas.offsetWidth === 0) {
+                    canvas.style.width  = '400px';
+                    canvas.style.height = '200px';
+                }
+                c.resize();
+            } catch (_) {}
+        });
+        await new Promise(r => setTimeout(r, 150));
 
         // Capture every chart canvas as a base64 PNG
         const charts = Object.keys(CHART_LABELS).map(id => {

@@ -92,7 +92,7 @@ $role = CURRENT_USER_ROLE;
                 html += `
                     <div class="comment-card ${cat}">
                         <div class="comment-meta">${escHtml(row.email)} &mdash; ${escHtml(date)}${exportLink}</div>
-                        <div class="comment-body">${escHtml(row.comment)}</div>
+                        ${row.comment ? `<div class="comment-body">${escHtml(row.comment)}</div>` : ''}
                     </div>`;
             }
         }
