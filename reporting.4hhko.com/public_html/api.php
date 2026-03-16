@@ -117,6 +117,17 @@ if ($resource === 'reports') {
         echo json_encode(['categories' => ['traffic', 'errors', 'engagement']]);
         exit;
     }
+    // Enforce section-level access for non-super_admin roles
+    if ($currentRole !== 'super_admin') {
+        $allowed = empty($currentSections)
+            ? ($currentRole !== 'viewer')   // analysts with no sections: all; viewers with no sections: none
+            : in_array($category, $currentSections, true);
+        if (!$allowed) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden']);
+            exit;
+        }
+    }
     switch ($category) {
         case 'traffic':
             $pvRows = $db->query("SELECT * FROM pageviews ORDER BY id DESC LIMIT 500")->fetchAll();
@@ -331,11 +342,6 @@ if ($resource === 'users') {
 
 // ── Special: Insights (analyst + super_admin only) ────────────────────────
 if ($resource === 'insights') {
-    if ($currentRole === 'viewer') {
-        http_response_code(403);
-        echo json_encode(['error' => 'Forbidden']);
-        exit;
-    }
     if ($method !== 'GET') {
         http_response_code(405);
         echo json_encode(['error' => 'Method not allowed']);
