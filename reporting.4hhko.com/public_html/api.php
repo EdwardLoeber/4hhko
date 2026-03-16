@@ -63,6 +63,7 @@ if ($resource === 'login') {
     $_SESSION['authenticated'] = true;
     $_SESSION['user_id']       = $user['id'];
     $_SESSION['role']          = $user['role'];
+    $_SESSION['email']         = $user['email'];
     // Parse PostgreSQL TEXT[] e.g. "{traffic,errors}" → ['traffic','errors']
     $secStr = trim($user['sections'] ?? '{}', '{}');
     $_SESSION['sections'] = $secStr === '' ? [] : explode(',', $secStr);
@@ -329,13 +330,32 @@ if ($resource === 'insights') {
          FROM pageviews"
     )->fetch();
 
-    $sessions = $db->query(
-        "SELECT * FROM user_sessions ORDER BY last_seen DESC LIMIT 300"
-    )->fetchAll();
+    $sessionSql =
+        "SELECT session_id,
+                COUNT(DISTINCT url) AS pages_visited,
+                COUNT(*) AS pageview_count,
+                MIN(timestamp)::text AS first_seen,
+                MAX(timestamp)::text AS last_seen,
+                ROUND(EXTRACT(EPOCH FROM (MAX(timestamp)-MIN(timestamp)))::numeric,0) AS session_duration_secs,
+                (array_agg(user_agent       ORDER BY timestamp DESC NULLS LAST))[1] AS user_agent,
+                (array_agg(language         ORDER BY timestamp DESC NULLS LAST))[1] AS language,
+                (array_agg(screen_width     ORDER BY timestamp DESC NULLS LAST))[1] AS screen_width,
+                (array_agg(screen_height    ORDER BY timestamp DESC NULLS LAST))[1] AS screen_height,
+                (array_agg(network_type     ORDER BY timestamp DESC NULLS LAST))[1] AS network_type,
+                (array_agg(technographics->>'timezone'    ORDER BY timestamp DESC NULLS LAST))[1] AS timezone,
+                (array_agg(technographics->>'colorScheme' ORDER BY timestamp DESC NULLS LAST))[1] AS color_scheme,
+                (array_agg(technographics->>'memory'      ORDER BY timestamp DESC NULLS LAST))[1] AS device_memory_gb
+         FROM pageviews
+         GROUP BY session_id
+         ORDER BY MAX(timestamp) DESC
+         LIMIT 300";
+
+    $sessions = $db->query($sessionSql)->fetchAll();
 
     $sessionsByDay = $db->query(
-        "SELECT DATE(first_seen)::text AS day, COUNT(*) AS cnt
-         FROM user_sessions GROUP BY day ORDER BY day"
+        "SELECT day, COUNT(*) AS cnt FROM
+         (SELECT DATE(MIN(timestamp))::text AS day FROM pageviews GROUP BY session_id) s
+         GROUP BY day ORDER BY day"
     )->fetchAll();
 
     $langs = $db->query(

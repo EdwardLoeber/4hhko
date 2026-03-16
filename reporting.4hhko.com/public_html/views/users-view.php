@@ -12,10 +12,14 @@ if (!defined('IN_APP')) { http_response_code(403); exit; }
     <style>
         :root { font-size: 13px; }
         body { padding: 0; }
-        header { padding: 0.4rem 1rem; }
+        header { padding: 0.5rem 1rem; border-bottom: 1px solid var(--pico-muted-border-color); }
         header nav { display: flex; justify-content: space-between; align-items: center; }
         header nav ul { margin: 0; padding: 0; list-style: none; display: flex; gap: 0.75rem; align-items: center; }
-        header nav ul li a { color: inherit; font-size: 0.85rem; }
+        header nav ul li a { color: inherit; font-size: 0.85rem; text-decoration: none; }
+        header nav ul li a:hover { color: var(--pico-primary); }
+        header nav ul li a[aria-current="page"] { font-weight: 700; color: var(--pico-primary); border-bottom: 2px solid var(--pico-primary); }
+        header nav strong { font-size: 0.95rem; }
+        .nav-user { font-size: 0.78rem; padding: 0.15rem 0.55rem; background: var(--pico-muted-border-color); border-radius: 4px; color: var(--pico-muted-color); }
         main { padding: 0.75rem 1rem; max-width: 960px; }
         h2 { font-size: 1rem; margin-bottom: 0.5rem; }
         h3 { font-size: 0.875rem; margin: 0.75rem 0 0.4rem; }
@@ -42,17 +46,7 @@ if (!defined('IN_APP')) { http_response_code(403); exit; }
 </head>
 <body>
 
-<header>
-    <nav>
-        <ul><li><strong>4hhko Analytics</strong></li></ul>
-        <ul>
-            <li><a href="/dashboard.php">Dashboard</a></li>
-            <li><a href="/insights.php">Insights</a></li>
-            <li><small>super_admin</small></li>
-            <li><a href="/logout.php">Logout</a></li>
-        </ul>
-    </nav>
-</header>
+<?php $__navActive = 'users.php'; require __DIR__ . '/_nav.php'; ?>
 
 <main>
     <h2>User Management</h2>

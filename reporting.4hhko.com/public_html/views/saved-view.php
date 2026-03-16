@@ -11,9 +11,14 @@ $role = CURRENT_USER_ROLE;
     <title>Saved Reports — 4hhko Analytics</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.classless.min.css">
     <style>
+        header { padding: 0.5rem 1rem; border-bottom: 1px solid var(--pico-muted-border-color); }
         header nav { display: flex; justify-content: space-between; align-items: center; }
-        header nav ul { margin: 0; padding: 0; list-style: none; display: flex; gap: 1rem; align-items: center; }
-        header nav ul li a { color: inherit; }
+        header nav ul { margin: 0; padding: 0; list-style: none; display: flex; gap: 0.75rem; align-items: center; }
+        header nav ul li a { color: inherit; font-size: 0.85rem; text-decoration: none; }
+        header nav ul li a:hover { color: var(--pico-primary); }
+        header nav ul li a[aria-current="page"] { font-weight: 700; color: var(--pico-primary); border-bottom: 2px solid var(--pico-primary); }
+        header nav strong { font-size: 0.95rem; }
+        .nav-user { font-size: 0.78rem; padding: 0.15rem 0.55rem; background: var(--pico-muted-border-color); border-radius: 4px; color: var(--pico-muted-color); }
 
         .badge {
             display: inline-block;
@@ -38,28 +43,11 @@ $role = CURRENT_USER_ROLE;
         .comment-body { white-space: pre-wrap; font-size: 0.9rem; }
         .empty-msg { color: var(--pico-muted-color); }
 
-        <?php if ($role !== 'viewer'): ?>
-        .nav-link { font-size: 0.9rem; }
-        <?php endif; ?>
     </style>
 </head>
 <body>
 
-<header>
-    <nav>
-        <ul><li><strong>4hhko Analytics</strong></li></ul>
-        <ul>
-            <?php if ($role !== 'viewer'): ?>
-            <li><a href="/dashboard.php" class="nav-link">Dashboard</a></li>
-            <?php endif; ?>
-            <?php if ($role === 'super_admin'): ?>
-            <li><a href="/users.php" class="nav-link">Users</a></li>
-            <?php endif; ?>
-            <li><small><?= htmlspecialchars($role) ?></small></li>
-            <li><a href="/logout.php">Logout</a></li>
-        </ul>
-    </nav>
-</header>
+<?php $__navActive = 'saved.php'; require __DIR__ . '/_nav.php'; ?>
 
 <main>
     <h2>Saved Reports</h2>
