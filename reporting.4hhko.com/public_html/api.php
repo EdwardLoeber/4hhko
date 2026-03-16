@@ -21,7 +21,6 @@ try {
 }
 
 // ── Route Parsing ─────────────────────────────────────────────────────────
-// URLs: /api/{resource}  or  /api/{resource}/{id}
 $uri   = strtok($_SERVER['REQUEST_URI'], '?');
 $parts = array_values(array_filter(explode('/', trim($uri, '/'))));
 
@@ -34,12 +33,6 @@ if (count($parts) < 2 || $parts[0] !== 'api') {
 $resource = $parts[1];
 $id       = $parts[2] ?? null;
 $method   = $_SERVER['REQUEST_METHOD'];
-
-if ($id !== null && !ctype_digit($id)) {
-    http_response_code(400);
-    echo json_encode(['error' => 'ID must be a positive integer']);
-    exit;
-}
 
 // ── Special: Login ────────────────────────────────────────────────────────
 if ($resource === 'login') {
@@ -56,7 +49,7 @@ if ($resource === 'login') {
         echo json_encode(['error' => 'Email and password are required']);
         exit;
     }
-    $stmt = $db->prepare('SELECT id, password_hash FROM users WHERE email = ?');
+    $stmt = $db->prepare('SELECT id, password_hash, role, sections FROM users WHERE email = ?');
     $stmt->execute([$email]);
     $user = $stmt->fetch();
     if (!$user || !password_verify($pass, $user['password_hash'])) {
@@ -66,11 +59,224 @@ if ($resource === 'login') {
     }
     session_name('sid');
     session_start();
-    session_regenerate_id(true);   // prevent session fixation
+    session_regenerate_id(true);
     $_SESSION['authenticated'] = true;
     $_SESSION['user_id']       = $user['id'];
-    http_response_code(200);
-    echo json_encode(['ok' => true]);
+    $_SESSION['role']          = $user['role'];
+    // Parse PostgreSQL TEXT[] e.g. "{traffic,errors}" → ['traffic','errors']
+    $secStr = trim($user['sections'] ?? '{}', '{}');
+    $_SESSION['sections'] = $secStr === '' ? [] : explode(',', $secStr);
+    echo json_encode(['ok' => true, 'role' => $user['role']]);
+    exit;
+}
+
+// ── Session Auth for all other routes ─────────────────────────────────────
+session_name('sid');
+if (session_status() === PHP_SESSION_NONE) session_start();
+if (empty($_SESSION['authenticated'])) {
+    http_response_code(401);
+    echo json_encode(['error' => 'Unauthenticated']);
+    exit;
+}
+
+$currentRole     = $_SESSION['role'] ?? 'viewer';
+$currentUserId   = (int)($_SESSION['user_id'] ?? 0);
+$currentSections = $_SESSION['sections'] ?? [];
+
+// ── ID validation (skip for category slugs under /api/reports/{category}) ─
+if ($id !== null && $resource !== 'reports' && $resource !== 'comments' && !ctype_digit($id)) {
+    http_response_code(400);
+    echo json_encode(['error' => 'ID must be a positive integer']);
+    exit;
+}
+
+// ── Special: Reports ──────────────────────────────────────────────────────
+if ($resource === 'reports') {
+    if ($method !== 'GET') {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed']);
+        exit;
+    }
+    $category = $id;
+    if (!$category) {
+        echo json_encode(['categories' => ['traffic', 'errors', 'engagement']]);
+        exit;
+    }
+    switch ($category) {
+        case 'traffic':
+            $pvRows = $db->query("SELECT * FROM pageviews ORDER BY id DESC LIMIT 500")->fetchAll();
+            $peRows = $db->query("SELECT * FROM page_exits ORDER BY id DESC LIMIT 500")->fetchAll();
+            echo json_encode(['pageviews' => $pvRows, 'page_exits' => $peRows]);
+            break;
+        case 'errors':
+            $rows = $db->query("SELECT * FROM errors ORDER BY id DESC LIMIT 500")->fetchAll();
+            echo json_encode(['errors' => $rows]);
+            break;
+        case 'engagement':
+            $aeRows = $db->query("SELECT * FROM activity_events ORDER BY id DESC LIMIT 500")->fetchAll();
+            $evRows = $db->query("SELECT * FROM events ORDER BY id DESC LIMIT 500")->fetchAll();
+            echo json_encode(['activity_events' => $aeRows, 'events' => $evRows]);
+            break;
+        default:
+            http_response_code(404);
+            echo json_encode(['error' => 'Unknown category']);
+    }
+    exit;
+}
+
+// ── Special: Comments ─────────────────────────────────────────────────────
+if ($resource === 'comments') {
+    if ($method === 'GET') {
+        $stmt = $db->prepare(
+            "SELECT category, comment, updated_at FROM report_comments WHERE user_id = ?"
+        );
+        $stmt->execute([$currentUserId]);
+        echo json_encode($stmt->fetchAll());
+    } elseif ($method === 'POST') {
+        if ($currentRole === 'viewer') {
+            http_response_code(403);
+            echo json_encode(['error' => 'Viewers cannot save comments']);
+            exit;
+        }
+        $body     = json_decode(file_get_contents('php://input'), true);
+        $category = $body['category'] ?? '';
+        $comment  = $body['comment'] ?? '';
+        if (!in_array($category, ['traffic', 'errors', 'engagement'], true)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid category']);
+            exit;
+        }
+        $stmt = $db->prepare(
+            "INSERT INTO report_comments (user_id, category, comment, updated_at)
+             VALUES (?, ?, ?, NOW())
+             ON CONFLICT (user_id, category) DO UPDATE
+             SET comment = EXCLUDED.comment, updated_at = NOW()"
+        );
+        $stmt->execute([$currentUserId, $category, $comment]);
+        echo json_encode(['ok' => true]);
+    } else {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed']);
+    }
+    exit;
+}
+
+// ── Special: Saved (all analyst comments, for viewer page) ────────────────
+if ($resource === 'saved') {
+    if ($method !== 'GET') {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed']);
+        exit;
+    }
+    $stmt = $db->query(
+        "SELECT u.email, rc.category, rc.comment, rc.updated_at
+         FROM report_comments rc
+         JOIN users u ON u.id = rc.user_id
+         WHERE rc.comment <> ''
+         ORDER BY rc.category, rc.updated_at DESC"
+    );
+    echo json_encode($stmt->fetchAll());
+    exit;
+}
+
+// ── Special: Users (super_admin only) ─────────────────────────────────────
+if ($resource === 'users') {
+    if ($currentRole !== 'super_admin') {
+        http_response_code(403);
+        echo json_encode(['error' => 'Forbidden']);
+        exit;
+    }
+
+    // Helper to convert pg TEXT[] string to PHP array
+    $parseSections = function(string $pgArr): array {
+        $s = trim($pgArr, '{}');
+        return $s === '' ? [] : explode(',', $s);
+    };
+
+    switch ($method) {
+        case 'GET':
+            $rows = $db->query("SELECT id, email, role, sections FROM users ORDER BY id")->fetchAll();
+            foreach ($rows as &$row) {
+                $row['sections'] = $parseSections($row['sections'] ?? '{}');
+            }
+            echo json_encode($rows);
+            break;
+
+        case 'POST':
+            $body  = json_decode(file_get_contents('php://input'), true);
+            $email = trim($body['email'] ?? '');
+            $pass  = $body['password'] ?? '';
+            $role  = $body['role'] ?? 'viewer';
+            $secs  = $body['sections'] ?? [];
+            if (!$email || !$pass) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Email and password required']);
+                exit;
+            }
+            if (!in_array($role, ['super_admin', 'analyst', 'viewer'], true)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Invalid role']);
+                exit;
+            }
+            $hash   = password_hash($pass, PASSWORD_DEFAULT);
+            $secsPg = '{' . implode(',', array_map('strval', $secs)) . '}';
+            $stmt   = $db->prepare(
+                "INSERT INTO users (email, password_hash, role, sections) VALUES (?, ?, ?, ?) RETURNING id"
+            );
+            $stmt->execute([$email, $hash, $role, $secsPg]);
+            $row = $stmt->fetch();
+            http_response_code(201);
+            echo json_encode(['id' => $row['id']]);
+            break;
+
+        case 'PUT':
+            if (!$id || !ctype_digit((string)$id)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'PUT requires a numeric id']);
+                exit;
+            }
+            $body = json_decode(file_get_contents('php://input'), true);
+            $role = $body['role'] ?? null;
+            $secs = $body['sections'] ?? null;
+            if ($role !== null && !in_array($role, ['super_admin', 'analyst', 'viewer'], true)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Invalid role']);
+                exit;
+            }
+            if ($role !== null && $secs !== null) {
+                $secsPg = '{' . implode(',', array_map('strval', $secs)) . '}';
+                $stmt = $db->prepare("UPDATE users SET role = ?, sections = ? WHERE id = ?");
+                $stmt->execute([$role, $secsPg, $id]);
+            } elseif ($role !== null) {
+                $stmt = $db->prepare("UPDATE users SET role = ? WHERE id = ?");
+                $stmt->execute([$role, $id]);
+            } elseif ($secs !== null) {
+                $secsPg = '{' . implode(',', array_map('strval', $secs)) . '}';
+                $stmt = $db->prepare("UPDATE users SET sections = ? WHERE id = ?");
+                $stmt->execute([$secsPg, $id]);
+            } else {
+                http_response_code(400);
+                echo json_encode(['error' => 'Nothing to update']);
+                exit;
+            }
+            echo json_encode(['ok' => true]);
+            break;
+
+        case 'DELETE':
+            if (!$id || !ctype_digit((string)$id)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'DELETE requires a numeric id']);
+                exit;
+            }
+            $stmt = $db->prepare("DELETE FROM users WHERE id = ?");
+            $stmt->execute([$id]);
+            http_response_code(204);
+            break;
+
+        default:
+            http_response_code(405);
+            echo json_encode(['error' => 'Method not allowed']);
+    }
     exit;
 }
 
@@ -91,11 +297,16 @@ if (!array_key_exists($resource, $tableMap)) {
 
 $table = $tableMap[$resource];
 
+// ── Role gate: only super_admin can write ─────────────────────────────────
+if ($method !== 'GET' && $currentRole !== 'super_admin') {
+    http_response_code(403);
+    echo json_encode(['error' => 'Forbidden: read-only access']);
+    exit;
+}
+
 // ── Route Dispatch ────────────────────────────────────────────────────────
 switch ($method) {
 
-    // GET /api/{resource}        → all rows (newest first, max 500)
-    // GET /api/{resource}/{id}   → single row by id
     case 'GET':
         if ($id === null) {
             $stmt = $db->query("SELECT * FROM $table ORDER BY id DESC LIMIT 500");
@@ -113,7 +324,6 @@ switch ($method) {
         }
         break;
 
-    // POST /api/{resource}   → insert new row, returns { id }
     case 'POST':
         if ($id !== null) {
             http_response_code(400);
@@ -126,7 +336,6 @@ switch ($method) {
             echo json_encode(['error' => 'Invalid JSON body']);
             exit;
         }
-        // Sanitize: only allow word-character column names
         $cols = array_values(array_filter(array_keys($body), fn($k) => preg_match('/^\w+$/', $k)));
         if (!$cols) {
             http_response_code(400);
@@ -143,7 +352,6 @@ switch ($method) {
         echo json_encode(['id' => $row['id']]);
         break;
 
-    // PUT /api/{resource}/{id}   → update row by id
     case 'PUT':
         if ($id === null) {
             http_response_code(400);
@@ -175,7 +383,6 @@ switch ($method) {
         }
         break;
 
-    // DELETE /api/{resource}/{id}   → delete row by id
     case 'DELETE':
         if ($id === null) {
             http_response_code(400);

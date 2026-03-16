@@ -2,7 +2,8 @@
 session_name('sid');
 session_start();
 if (!empty($_SESSION['authenticated'])) {
-    header('Location: /dashboard.php');
+    $role = $_SESSION['role'] ?? 'viewer';
+    header('Location: ' . ($role === 'viewer' ? '/saved.php' : '/dashboard.php'));
     exit;
 }
 ?>
@@ -100,7 +101,8 @@ if (!empty($_SESSION['authenticated'])) {
                 });
 
                 if (res.ok) {
-                    window.location.href = '/dashboard.php';
+                    const data = await res.json();
+                    window.location.href = data.role === 'viewer' ? '/saved.php' : '/dashboard.php';
                 } else {
                     const data = await res.json();
                     errorEl.textContent  = data.error || 'Login failed.';

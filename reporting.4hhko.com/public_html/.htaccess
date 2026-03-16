@@ -1,6 +1,10 @@
 Options -MultiViews
 RewriteEngine On
 
+# Custom error pages
+ErrorDocument 403 /403.php
+ErrorDocument 404 /404.php
+
 # Redirect bare root to login
 RewriteRule ^$ /login.php [R=302,L]
 
