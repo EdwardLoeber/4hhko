@@ -142,7 +142,7 @@ if ($resource === 'comments') {
         $body     = json_decode(file_get_contents('php://input'), true);
         $category = $body['category'] ?? '';
         $comment  = $body['comment'] ?? '';
-        if (!in_array($category, ['traffic', 'errors', 'engagement'], true)) {
+        if (!in_array($category, ['traffic', 'errors', 'engagement', 'insights'], true)) {
             http_response_code(400);
             echo json_encode(['error' => 'Invalid category']);
             exit;

@@ -31,6 +31,14 @@ $role = CURRENT_USER_ROLE;
         .stat-card .val { font-size: 1.4rem; font-weight: 700; line-height: 1.1; }
         .stat-card .lbl { font-size: 0.7rem; color: var(--pico-muted-color); text-transform: uppercase; letter-spacing: 0.04em; }
 
+        .comment-section { margin-bottom: 0.6rem; }
+        .comment-section label { font-weight: 600; font-size: 0.8rem; display: block; margin-bottom: 0.2rem; }
+        .comment-section textarea { width: 100%; min-height: 60px; font-size: 0.8rem; padding: 0.4rem; }
+        .comment-status { font-size: 0.72rem; color: var(--pico-muted-color); }
+        .export-row { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.35rem; margin-bottom: 0.5rem; }
+        .export-row button { font-size: 0.78rem; padding: 0.3rem 0.75rem; }
+        .export-row a { font-size: 0.78rem; }
+
         .tab-bar { display: flex; gap: 0; border-bottom: 2px solid var(--pico-muted-border-color); margin-bottom: 0.75rem; }
         .tab-btn { padding: 0.4rem 0.9rem; cursor: pointer; background: none; border: none;
                    border-bottom: 2px solid transparent; font-size: 0.8rem; color: var(--pico-muted-color); margin-bottom: -2px; }
@@ -64,15 +72,24 @@ $role = CURRENT_USER_ROLE;
 <?php $__navActive = 'insights.php'; require __DIR__ . '/_nav.php'; ?>
 
 <main>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
-        <div id="stats-row" class="stats-row" style="margin-bottom:0;flex:1">
-            <div class="stat-card"><div class="val" id="stat-sessions">—</div><div class="lbl">Unique Sessions</div></div>
-            <div class="stat-card"><div class="val" id="stat-pageviews">—</div><div class="lbl">Total Pageviews</div></div>
-            <div class="stat-card"><div class="val" id="stat-first">—</div><div class="lbl">First Access</div></div>
-            <div class="stat-card"><div class="val" id="stat-last">—</div><div class="lbl">Last Access</div></div>
-        </div>
-        <button onclick="exportInsightsCSV()" style="margin-left:0.75rem;padding:0.3rem 0.8rem;font-size:0.75rem;white-space:nowrap;flex-shrink:0">Export CSV</button>
+    <div id="stats-row" class="stats-row">
+        <div class="stat-card"><div class="val" id="stat-sessions">—</div><div class="lbl">Unique Sessions</div></div>
+        <div class="stat-card"><div class="val" id="stat-pageviews">—</div><div class="lbl">Total Pageviews</div></div>
+        <div class="stat-card"><div class="val" id="stat-first">—</div><div class="lbl">First Access</div></div>
+        <div class="stat-card"><div class="val" id="stat-last">—</div><div class="lbl">Last Access</div></div>
     </div>
+
+    <?php if ($role !== 'viewer'): ?>
+    <div class="comment-section">
+        <label for="insight-comment">Analyst Comment</label>
+        <textarea id="insight-comment" placeholder="Add your insights analysis..."></textarea>
+        <div class="export-row">
+            <span class="comment-status" id="insight-comment-status"></span>
+            <button type="button" id="insight-export-btn" onclick="exportInsightsPDF()">Export PDF</button>
+            <a id="insight-export-link" href="#" target="_blank" style="display:none">Open Export</a>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <div class="tab-bar">
         <button class="tab-btn active" data-tab="users">User Overview</button>
@@ -83,15 +100,15 @@ $role = CURRENT_USER_ROLE;
     <div id="tab-users" class="tab-panel active">
         <div class="chart-grid">
             <div class="chart-card">
-                <h3 id="u-chart1-lbl">Sessions Per Day</h3>
+                <h3>Sessions Per Day</h3>
                 <canvas id="u-chart1"></canvas>
             </div>
             <div class="chart-card">
-                <h3 id="u-chart2-lbl">Language Distribution</h3>
+                <h3>Language Distribution</h3>
                 <canvas id="u-chart2"></canvas>
             </div>
             <div class="chart-card">
-                <h3 id="u-chart3-lbl">Timezone Distribution</h3>
+                <h3>Timezone Distribution</h3>
                 <canvas id="u-chart3"></canvas>
             </div>
         </div>

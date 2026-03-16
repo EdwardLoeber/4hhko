@@ -223,43 +223,106 @@ function renderTechTable(sessions) {
     }).join('');
 }
 
-// ── Export ─────────────────────────────────────────────────────────────────
+// ── Export & Comment ───────────────────────────────────────────────────────
 
 let _insightsData = null;   // cached after first load
 
-function exportInsightsCSV() {
+// Chart ID → human-readable label for the PDF
+const CHART_LABELS = {
+    'u-chart1': 'Sessions Per Day',
+    'u-chart2': 'Language Distribution',
+    'u-chart3': 'Timezone Distribution',
+    't-chart1': 'Mobile vs Desktop',
+    't-chart2': 'Browser Share',
+    't-chart3': 'OS Distribution',
+    't-chart4': 'Screen Resolutions',
+    't-chart5': 'Device Memory (GB)',
+    't-chart6': 'Color Scheme Preference',
+};
+
+async function exportInsightsPDF() {
     if (!_insightsData) { alert('Data not loaded yet.'); return; }
-    const sessions = _insightsData.sessions || [];
 
-    const cols = [
-        'session_id', 'first_seen', 'last_seen', 'session_duration_secs',
-        'pageview_count', 'language', 'timezone',
-        'browser', 'os', 'device_type',
-        'screen_resolution', 'device_memory_gb', 'network_type', 'color_scheme'
-    ];
+    const btn  = document.getElementById('insight-export-btn');
+    const link = document.getElementById('insight-export-link');
+    if (btn) { btn.disabled = true; btn.textContent = 'Exporting…'; }
 
-    const csvCell = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+    try {
+        // Temporarily show all tab panels so hidden canvases get proper dimensions
+        const panels      = document.querySelectorAll('.tab-panel');
+        const origDisplay = [...panels].map(p => p.style.display);
+        panels.forEach(p => { p.style.display = 'block'; });
 
-    const rows = sessions.map(s => {
-        const p   = parseUA(s.user_agent || '');
-        const res = (s.screen_width && s.screen_height) ? `${s.screen_width}x${s.screen_height}` : '';
-        return [
-            s.session_id, s.first_seen, s.last_seen, s.session_duration_secs,
-            s.pageview_count, s.language || '', s.timezone || '',
-            p.browser, p.os, p.mobile ? 'Mobile' : 'Desktop',
-            res, s.device_memory_gb || '', s.network_type || '', s.color_scheme || ''
-        ].map(csvCell);
+        // Force Chart.js to recalculate canvas sizes, then wait one frame
+        Object.values(ci).forEach(c => { try { c.resize(); } catch (_) {} });
+        await new Promise(r => setTimeout(r, 60));
+
+        // Capture every chart canvas as a base64 PNG
+        const charts = Object.keys(CHART_LABELS).map(id => {
+            const canvas = document.getElementById(id);
+            if (!canvas) return null;
+            return { id, label: CHART_LABELS[id], img: canvas.toDataURL('image/png') };
+        }).filter(Boolean);
+
+        // Restore tab panel visibility
+        panels.forEach((p, i) => { p.style.display = origDisplay[i]; });
+
+        const comment  = document.getElementById('insight-comment')?.value || '';
+        const stats    = _insightsData.stats || {};
+        const sessions = (_insightsData.sessions || []).slice(0, 25);
+
+        const res = await fetch('/export-insights.php', {
+            method:      'POST',
+            credentials: 'same-origin',
+            headers:     { 'Content-Type': 'application/json' },
+            body:        JSON.stringify({ comment, charts, stats, sessions }),
+        });
+
+        if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.error || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        if (link) {
+            link.href          = data.url;
+            link.textContent   = 'Open Export';
+            link.style.display = 'inline';
+        }
+    } catch (e) {
+        alert('Export failed: ' + e.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Export PDF'; }
+    }
+}
+
+function initInsightCommentBox() {
+    const ta     = document.getElementById('insight-comment');
+    const status = document.getElementById('insight-comment-status');
+    if (!ta) return;
+
+    let timer;
+    ta.addEventListener('input', () => {
+        clearTimeout(timer);
+        if (status) status.textContent = 'Saving…';
+        timer = setTimeout(async () => {
+            try {
+                const res = await fetch('/api/comments', {
+                    method:      'POST',
+                    credentials: 'same-origin',
+                    headers:     { 'Content-Type': 'application/json' },
+                    body:        JSON.stringify({ category: 'insights', comment: ta.value }),
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                if (status) {
+                    status.textContent = 'Saved ✓';
+                    setTimeout(() => { status.textContent = ''; }, 2000);
+                }
+            } catch (e) {
+                if (status) status.textContent = 'Save failed';
+            }
+        }, 800);
     });
-
-    const csv  = [cols.map(csvCell).join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url  = URL.createObjectURL(blob);
-    const a    = Object.assign(document.createElement('a'), {
-        href: url,
-        download: `insights_${new Date().toISOString().substring(0, 10)}.csv`
-    });
-    a.click();
-    URL.revokeObjectURL(url);
 }
 
 // ── Tabs ───────────────────────────────────────────────────────────────────
@@ -280,6 +343,19 @@ function initTabs() {
 
 async function init() {
     initTabs();
+
+    // Load existing analyst comment (non-blocking)
+    fetch('/api/comments', { credentials: 'same-origin' })
+        .then(r => r.ok ? r.json() : [])
+        .then(comments => {
+            const match = comments.find(c => c.category === 'insights');
+            const ta    = document.getElementById('insight-comment');
+            if (ta && match) ta.value = match.comment;
+        })
+        .catch(() => {});
+
+    initInsightCommentBox();
+
     try {
         const res  = await fetch('/api/insights', { credentials: 'same-origin' });
         if (!res.ok) {

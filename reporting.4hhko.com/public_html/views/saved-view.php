@@ -33,11 +33,13 @@ $role = CURRENT_USER_ROLE;
         .badge-traffic    { background: #4a90e2; }
         .badge-errors     { background: #e74c3c; }
         .badge-engagement { background: #27ae60; }
+        .badge-insights   { background: #9b59b6; }
 
         .comment-card { border-left: 4px solid var(--pico-muted-border-color); padding: 0.75rem 1rem; margin-bottom: 1rem; }
         .comment-card.traffic    { border-color: #4a90e2; }
         .comment-card.errors     { border-color: #e74c3c; }
         .comment-card.engagement { border-color: #27ae60; }
+        .comment-card.insights   { border-color: #9b59b6; }
 
         .comment-meta { font-size: 0.78rem; color: var(--pico-muted-color); margin-bottom: 0.25rem; }
         .comment-body { white-space: pre-wrap; font-size: 0.9rem; }
@@ -71,7 +73,7 @@ $role = CURRENT_USER_ROLE;
             return;
         }
 
-        const categoryOrder = ['traffic', 'errors', 'engagement'];
+        const categoryOrder = ['traffic', 'errors', 'engagement', 'insights'];
         const grouped = {};
         for (const r of rows) {
             if (!grouped[r.category]) grouped[r.category] = [];
