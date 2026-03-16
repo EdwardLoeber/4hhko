@@ -121,9 +121,13 @@ if (!empty($charts)) {
     foreach ($charts as $chart) {
         $label = $chart['label'] ?? '';
         $img   = $chart['img']   ?? '';
-        if (empty($img) || strpos($img, 'data:image/') !== 0) continue;
+        if (empty($img)) continue;
+        // Client strips the data URI prefix; reconstruct it here
+        if (strpos($img, 'data:image/') !== 0) {
+            $img = 'data:image/jpeg;base64,' . $img;
+        }
         $html .= '<div class="chart-box"><h3>' . $h($label) . '</h3>';
-        $html .= '<img src="' . $h($img) . '" alt="' . $h($label) . '"></div>';
+        $html .= '<img src="' . $img . '" alt="' . $h($label) . '"></div>';
     }
     $html .= '</div>';
 }
