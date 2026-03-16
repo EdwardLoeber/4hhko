@@ -120,13 +120,13 @@ function renderTables(category, data) {
     // Each table gets its own independently scrollable container
     const multiple = entries.length > 1;
     let html = multiple
-        ? `<div style="display:grid;grid-template-columns:repeat(${entries.length},1fr);gap:0.6rem">`
+        ? `<div style="display:grid;grid-template-columns:repeat(${entries.length},1fr);gap:0.6rem;min-width:0">`
         : '';
 
     for (const [name, rows] of entries) {
         const tableHtml = name === 'activity_events' ? buildActivityTable(rows) : buildTable(rows);
         if (multiple) {
-            html += `<div>
+            html += `<div style="min-width:0">
                 <p class="section-label">${escHtml(name)} (${rows.length})</p>
                 <div style="overflow-x:auto;overflow-y:auto;max-height:240px">${tableHtml}</div>
             </div>`;
