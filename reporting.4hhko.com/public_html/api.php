@@ -381,7 +381,7 @@ if ($resource === 'insights') {
     $memory = $db->query(
         "SELECT technographics->>'memory' AS memory_gb, COUNT(*) AS cnt
          FROM pageviews WHERE technographics->>'memory' IS NOT NULL
-         GROUP BY memory_gb ORDER BY memory_gb::numeric"
+         GROUP BY technographics->>'memory' ORDER BY (technographics->>'memory')::numeric"
     )->fetchAll();
 
     $colorScheme = $db->query(
