@@ -10,11 +10,12 @@ const SECTIONS = ['traffic', 'errors', 'engagement'];
 // ── Model ─────────────────────────────────────────────────────────────────
 
 async function apiUsers(method, id, body) {
-    const url = id ? `/api/users/${id}` : '/api/users';
-    // ModSecurity blocks PUT/DELETE; tunnel them through POST with override header
-    const wireMethod = (method === 'PUT' || method === 'DELETE') ? 'POST' : method;
+    // ModSecurity blocks PUT/DELETE; tunnel them as POST with _method query param
+    const needsTunnel = method === 'PUT' || method === 'DELETE';
+    const base = id ? `/api/users/${id}` : '/api/users';
+    const url  = needsTunnel ? `${base}?_method=${method}` : base;
+    const wireMethod = needsTunnel ? 'POST' : method;
     const headers = {};
-    if (method === 'PUT' || method === 'DELETE') headers['X-HTTP-Method-Override'] = method;
     if (body || method === 'DELETE') headers['Content-Type'] = 'application/json';
     const res = await fetch(url, {
         method:      wireMethod,

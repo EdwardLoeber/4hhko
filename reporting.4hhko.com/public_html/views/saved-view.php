@@ -110,7 +110,7 @@ $role = CURRENT_USER_ROLE;
         list.innerHTML = '<p style="color:red">Failed to load: ' + escHtml(e.message) + '</p>';
     }
 
-    async function deleteSaved(id, btn) {
+    window.deleteSaved = async function deleteSaved(id, btn) {
         if (!confirm('Delete this entry?')) return;
         btn.disabled = true;
         try {
