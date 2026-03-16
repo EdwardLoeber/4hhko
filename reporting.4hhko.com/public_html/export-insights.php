@@ -168,39 +168,14 @@ $html .= '</body></html>';
 $exportsDir = __DIR__ . '/exports/';
 if (!is_dir($exportsDir)) mkdir($exportsDir, 0755, true);
 
-$vendorAutoload = __DIR__ . '/vendor/autoload.php';
-if (file_exists($vendorAutoload)) {
-    require_once $vendorAutoload;
-    try {
-        $mpdf = new \Mpdf\Mpdf([
-            'mode'          => 'utf-8',
-            'format'        => 'A4',
-            'margin_left'   => 10,
-            'margin_right'  => 10,
-            'margin_top'    => 15,
-            'margin_bottom' => 15,
-        ]);
-        $mpdf->WriteHTML($html);
-        $filename  = $basename . '.pdf';
-        $mpdf->Output($exportsDir . $filename, 'F');
-        $exportUrl = '/exports/' . $filename;
-    } catch (\Exception $e) {
-        $filename  = $basename . '.html';
-        file_put_contents($exportsDir . $filename, $html);
-        $exportUrl = '/exports/' . $filename;
-    }
-} else {
-    $filename  = $basename . '.html';
-    file_put_contents($exportsDir . $filename, $html);
-    $exportUrl = '/exports/' . $filename;
-}
+$filename  = $basename . '.html';
+file_put_contents($exportsDir . $filename, $html);
+$exportUrl = '/exports/' . $filename;
 
 // ── Persist comment + export URL ───────────────────────────────────────────
 $stmt = $db->prepare(
     "INSERT INTO report_comments (user_id, category, comment, export_url, updated_at)
-     VALUES (?, 'insights', ?, ?, NOW())
-     ON CONFLICT (user_id, category) DO UPDATE
-     SET comment = EXCLUDED.comment, export_url = EXCLUDED.export_url, updated_at = NOW()"
+     VALUES (?, 'insights', ?, ?, NOW())"
 );
 $stmt->execute([$userId, $comment, $exportUrl]);
 
