@@ -308,6 +308,80 @@ if ($resource === 'users') {
     exit;
 }
 
+// ── Special: Insights (analyst + super_admin only) ────────────────────────
+if ($resource === 'insights') {
+    if ($currentRole === 'viewer') {
+        http_response_code(403);
+        echo json_encode(['error' => 'Forbidden']);
+        exit;
+    }
+    if ($method !== 'GET') {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed']);
+        exit;
+    }
+
+    $stats = $db->query(
+        "SELECT COUNT(DISTINCT session_id) AS unique_sessions,
+                COUNT(*) AS total_pageviews,
+                MIN(timestamp)::text AS first_access,
+                MAX(timestamp)::text AS last_access
+         FROM pageviews"
+    )->fetch();
+
+    $sessions = $db->query(
+        "SELECT * FROM user_sessions ORDER BY last_seen DESC LIMIT 300"
+    )->fetchAll();
+
+    $sessionsByDay = $db->query(
+        "SELECT DATE(first_seen)::text AS day, COUNT(*) AS cnt
+         FROM user_sessions GROUP BY day ORDER BY day"
+    )->fetchAll();
+
+    $langs = $db->query(
+        "SELECT language, COUNT(*) AS cnt FROM pageviews
+         WHERE language IS NOT NULL
+         GROUP BY language ORDER BY cnt DESC LIMIT 15"
+    )->fetchAll();
+
+    $timezones = $db->query(
+        "SELECT technographics->>'timezone' AS timezone, COUNT(*) AS cnt
+         FROM pageviews WHERE technographics->>'timezone' IS NOT NULL
+         GROUP BY timezone ORDER BY cnt DESC LIMIT 15"
+    )->fetchAll();
+
+    $screens = $db->query(
+        "SELECT screen_width || 'x' || screen_height AS resolution, COUNT(*) AS cnt
+         FROM pageviews
+         WHERE screen_width IS NOT NULL AND screen_height IS NOT NULL
+         GROUP BY screen_width, screen_height ORDER BY cnt DESC LIMIT 10"
+    )->fetchAll();
+
+    $memory = $db->query(
+        "SELECT technographics->>'memory' AS memory_gb, COUNT(*) AS cnt
+         FROM pageviews WHERE technographics->>'memory' IS NOT NULL
+         GROUP BY memory_gb ORDER BY memory_gb::numeric"
+    )->fetchAll();
+
+    $colorScheme = $db->query(
+        "SELECT technographics->>'colorScheme' AS scheme, COUNT(*) AS cnt
+         FROM pageviews WHERE technographics->>'colorScheme' IS NOT NULL
+         GROUP BY scheme ORDER BY cnt DESC"
+    )->fetchAll();
+
+    echo json_encode([
+        'stats'          => $stats,
+        'sessions'       => $sessions,
+        'sessions_by_day'=> $sessionsByDay,
+        'langs'          => $langs,
+        'timezones'      => $timezones,
+        'screens'        => $screens,
+        'memory'         => $memory,
+        'color_scheme'   => $colorScheme,
+    ]);
+    exit;
+}
+
 // ── Resource Whitelist ────────────────────────────────────────────────────
 $tableMap = [
     'pageviews'  => 'pageviews',

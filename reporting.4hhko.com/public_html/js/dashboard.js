@@ -157,6 +157,9 @@ function makeChart(canvasId, config) {
     }
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
+    // Reveal parent card if it was hidden (chart3/chart4 slots start hidden)
+    const card = canvas.closest('.chart-card');
+    if (card) card.style.display = '';
     chartInstances[canvasId] = new Chart(canvas, config);
 }
 
@@ -178,43 +181,87 @@ function countByField(rows, field) {
     return counts;
 }
 
-function renderTrafficCharts(data) {
-    const pvRows = data.pageviews  || [];
+// Returns an HSL color along a red→blue gradient based on network speed rank.
+// Fastest (5g) = red (hue 0), slowest (slow-2g) = blue (hue 240).
+function netTypeColor(type) {
+    const ORDER = ['5g', '4g', 'wifi', '3g', '2g', 'slow-2g'];
+    const idx   = ORDER.indexOf(type);
+    if (idx === -1) return '#95a5a6';
+    const hue = Math.round((idx / (ORDER.length - 1)) * 240);
+    return `hsl(${hue}, 85%, 50%)`;
+}
 
-    // Chart 1: Avg page load time per day (ms) — industry KPI for performance
-    const sumDay = {}, cntDay = {};
-    for (const r of pvRows) {
-        const day = r.timestamp ? String(r.timestamp).substring(0, 10) : null;
-        const t   = parseFloat(r.total_load_time);
-        if (!day || isNaN(t)) continue;
-        sumDay[day] = (sumDay[day] || 0) + t;
-        cntDay[day] = (cntDay[day] || 0) + 1;
-    }
-    const days = Object.keys(sumDay).sort();
-    const avgs = days.map(d => Math.round(sumDay[d] / cntDay[d]));
-    document.getElementById('chart1-label-traffic').textContent = 'Avg Page Load Time (ms) Per Day';
+function renderTrafficCharts(data) {
+    const pvRows = data.pageviews || [];
+
+    // Chart 1: Pageviews per day (line)
+    const byDay = countByDate(pvRows, 'timestamp');
+    const days  = Object.keys(byDay).sort();
+    document.getElementById('chart1-label-traffic').textContent = 'Pageviews Per Day';
     makeChart('chart1-traffic', {
         type: 'line',
         data: {
             labels: days,
-            datasets: [{ label: 'Avg Load (ms)', data: avgs,
+            datasets: [{ label: 'Pageviews', data: days.map(d => byDay[d]),
                 borderColor: '#4a90e2', backgroundColor: 'rgba(74,144,226,0.1)',
                 tension: 0.3, fill: true, pointRadius: 3 }]
         },
-        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
     });
 
-    // Chart 2: Network type distribution (doughnut) — shows visitor connection quality
+    // Chart 2: Top 10 URLs (horizontal bar)
+    const byUrl  = countByField(pvRows, 'url');
+    const sorted = Object.entries(byUrl).sort((a, b) => b[1] - a[1]).slice(0, 10);
+    const labels = sorted.map(([url]) => url.replace(/^https?:\/\/[^/]+/, '') || '/');
+    document.getElementById('chart2-label-traffic').textContent = 'Top 10 URLs';
+    makeChart('chart2-traffic', {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{ label: 'Pageviews', data: sorted.map(([, n]) => n), backgroundColor: '#4a90e2' }]
+        },
+        options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+    });
+
+    // Chart 3: Page load time histogram
+    const BINS = [
+        { label: '0–200ms',   min: 0,    max: 200 },
+        { label: '200–500ms', min: 200,  max: 500 },
+        { label: '500ms–1s',  min: 500,  max: 1000 },
+        { label: '1–2s',      min: 1000, max: 2000 },
+        { label: '2–5s',      min: 2000, max: 5000 },
+        { label: '5s+',       min: 5000, max: Infinity },
+    ];
+    const binCounts = new Array(BINS.length).fill(0);
+    for (const r of pvRows) {
+        const t = parseFloat(r.total_load_time);
+        if (isNaN(t)) continue;
+        const i = BINS.findIndex(b => t >= b.min && t < b.max);
+        if (i >= 0) binCounts[i]++;
+    }
+    document.getElementById('chart3-label-traffic').textContent = 'Page Load Time Distribution';
+    makeChart('chart3-traffic', {
+        type: 'bar',
+        data: {
+            labels: BINS.map(b => b.label),
+            datasets: [{ label: 'Pages', data: binCounts, backgroundColor: '#4a90e2' }]
+        },
+        options: {
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+    });
+
+    // Chart 4: Network type distribution — gradient from red (5g/fast) to blue (slow-2g/slow)
     const netCounts  = countByField(pvRows, 'network_type');
     const netEntries = Object.entries(netCounts).sort((a, b) => b[1] - a[1]);
-    const NET_COLORS = { '4g': '#27ae60', '3g': '#f39c12', '2g': '#e74c3c', 'slow-2g': '#c0392b', 'wifi': '#3498db' };
-    document.getElementById('chart2-label-traffic').textContent = 'Network Type Distribution';
-    makeChart('chart2-traffic', {
+    document.getElementById('chart4-label-traffic').textContent = 'Network Type Distribution';
+    makeChart('chart4-traffic', {
         type: 'doughnut',
         data: {
             labels: netEntries.map(([k]) => k || 'unknown'),
             datasets: [{ data: netEntries.map(([, n]) => n),
-                backgroundColor: netEntries.map(([k]) => NET_COLORS[k] || '#95a5a6') }]
+                backgroundColor: netEntries.map(([k]) => netTypeColor(k)) }]
         },
         options: { plugins: { legend: { position: 'right', labels: { font: { size: 11 } } } } }
     });
@@ -223,7 +270,7 @@ function renderTrafficCharts(data) {
 function renderErrorCharts(data) {
     const rows = data.errors || [];
 
-    // Chart 1: Errors per day — shows error rate trend over time
+    // Chart 1: Errors per day (bar)
     const byDay = countByDate(rows, 'timestamp');
     const days  = Object.keys(byDay).sort();
     document.getElementById('chart1-label-errors').textContent = 'Errors Per Day';
@@ -236,12 +283,26 @@ function renderErrorCharts(data) {
         options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
     });
 
-    // Chart 2: Error type distribution (doughnut) — unhandled-error vs unhandled-rejection etc.
-    const byType     = countByField(rows, 'type');
+    // Chart 2: Top error messages (horizontal bar)
+    const byMsg     = countByField(rows, 'message');
+    const msgSorted = Object.entries(byMsg).sort((a, b) => b[1] - a[1]).slice(0, 10);
+    const msgLabels = msgSorted.map(([msg]) => msg.length > 40 ? msg.substring(0, 40) + '…' : msg);
+    document.getElementById('chart2-label-errors').textContent = 'Top Error Messages';
+    makeChart('chart2-errors', {
+        type: 'bar',
+        data: {
+            labels: msgLabels,
+            datasets: [{ label: 'Count', data: msgSorted.map(([, n]) => n), backgroundColor: '#c0392b' }]
+        },
+        options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+    });
+
+    // Chart 3: Error type distribution (doughnut) — unhandled-error vs unhandled-rejection etc.
+    const byType      = countByField(rows, 'type');
     const typeEntries = Object.entries(byType).sort((a, b) => b[1] - a[1]);
     const ERR_COLORS  = ['#c0392b', '#e74c3c', '#e67e22', '#f39c12', '#95a5a6', '#7f8c8d'];
-    document.getElementById('chart2-label-errors').textContent = 'Error Type Distribution';
-    makeChart('chart2-errors', {
+    document.getElementById('chart3-label-errors').textContent = 'Error Type Distribution';
+    makeChart('chart3-errors', {
         type: 'doughnut',
         data: {
             labels: typeEntries.map(([t]) => t || 'unknown'),
@@ -304,7 +365,7 @@ function renderEngagementCharts(data) {
         options: { plugins: { legend: { position: 'right', labels: { font: { size: 11 } } } } }
     });
 
-    // Chart 2: Activity events per day (line) — shows engagement volume trend
+    // Chart 2: Activity events per day (line) — engagement volume trend
     const byDay = {};
     for (const ev of allEvents) {
         let day;
@@ -328,6 +389,19 @@ function renderEngagementCharts(data) {
                 tension: 0.3, fill: true, pointRadius: 3 }]
         },
         options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+    });
+
+    // Chart 3: Event type breakdown (horizontal bar)
+    const sorted     = Object.entries(byType).sort((a, b) => b[1] - a[1]);
+    const typeColors = sorted.map(([t]) => TYPE_COLORS[t] || '#27ae60');
+    document.getElementById('chart3-label-engagement').textContent = 'Event Type Breakdown';
+    makeChart('chart3-engagement', {
+        type: 'bar',
+        data: {
+            labels: sorted.map(([t]) => t),
+            datasets: [{ label: 'Count', data: sorted.map(([, n]) => n), backgroundColor: typeColors }]
+        },
+        options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
     });
 }
 

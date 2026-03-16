@@ -47,6 +47,7 @@ if (!defined('IN_APP')) { http_response_code(403); exit; }
         <ul><li><strong>4hhko Analytics</strong></li></ul>
         <ul>
             <li><a href="/dashboard.php">Dashboard</a></li>
+            <li><a href="/insights.php">Insights</a></li>
             <li><small>super_admin</small></li>
             <li><a href="/logout.php">Logout</a></li>
         </ul>

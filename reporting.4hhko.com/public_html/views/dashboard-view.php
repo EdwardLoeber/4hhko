@@ -80,6 +80,9 @@ $tabLabels = ['traffic' => 'Traffic', 'errors' => 'Errors', 'engagement' => 'Eng
     <nav>
         <ul><li><strong>4hhko Analytics</strong></li></ul>
         <ul>
+            <?php if ($role !== 'viewer'): ?>
+            <li><a href="/insights.php">Insights</a></li>
+            <?php endif; ?>
             <?php if ($role === 'super_admin'): ?>
             <li><a href="/users.php">Users</a></li>
             <?php endif; ?>
@@ -114,6 +117,14 @@ $tabLabels = ['traffic' => 'Traffic', 'errors' => 'Errors', 'engagement' => 'Eng
             <div class="chart-card">
                 <h3 id="chart2-label-<?= $tab ?>">Chart 2</h3>
                 <canvas id="chart2-<?= $tab ?>"></canvas>
+            </div>
+            <div class="chart-card" id="chart3-card-<?= $tab ?>" style="display:none">
+                <h3 id="chart3-label-<?= $tab ?>">Chart 3</h3>
+                <canvas id="chart3-<?= $tab ?>"></canvas>
+            </div>
+            <div class="chart-card" id="chart4-card-<?= $tab ?>" style="display:none">
+                <h3 id="chart4-label-<?= $tab ?>">Chart 4</h3>
+                <canvas id="chart4-<?= $tab ?>"></canvas>
             </div>
         </div>
 
