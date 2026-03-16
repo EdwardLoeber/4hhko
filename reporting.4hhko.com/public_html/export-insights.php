@@ -31,8 +31,9 @@ $userCharts = array_values(array_filter($allCharts, fn($c) => str_starts_with($c
 $techCharts = array_values(array_filter($allCharts, fn($c) => str_starts_with($c['id'] ?? '', 't-')));
 
 // ── DB ────────────────────────────────────────────────────────────────────
+require_once __DIR__ . '/db.php';
 try {
-    $db = new PDO('pgsql:host=localhost;dbname=analytics', 'femmy', 'applejacktwilightsparkle');
+    $db = new PDO(DB_DSN, DB_USER, DB_PASS);
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $db->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
 } catch (PDOException $e) {

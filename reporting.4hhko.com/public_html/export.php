@@ -32,8 +32,9 @@ if (!in_array($category, ['traffic', 'errors', 'engagement'], true)) {
 }
 
 // ── DB ────────────────────────────────────────────────────────────────────
+require_once __DIR__ . '/db.php';
 try {
-    $db = new PDO('pgsql:host=localhost;dbname=analytics', 'femmy', 'applejacktwilightsparkle');
+    $db = new PDO(DB_DSN, DB_USER, DB_PASS);
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $db->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
