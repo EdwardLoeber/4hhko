@@ -200,7 +200,7 @@ if ($resource === 'saved') {
             "SELECT rc.id, u.email, rc.category, rc.comment, rc.export_url, rc.updated_at
              FROM report_comments rc
              JOIN users u ON u.id = rc.user_id
-             WHERE rc.comment <> '' OR rc.export_url IS NOT NULL
+             WHERE rc.export_url IS NOT NULL
              ORDER BY rc.updated_at DESC"
         );
         echo json_encode($stmt->fetchAll());
