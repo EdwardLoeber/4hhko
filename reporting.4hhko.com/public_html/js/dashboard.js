@@ -113,16 +113,31 @@ function buildActivityTable(rows) {
 function renderTables(category, data) {
     const wrap = document.getElementById(`tables-${category}`);
     if (!wrap) return;
-    let html = '';
-    for (const [name, rows] of Object.entries(data)) {
-        html += `<p class="section-label">${escHtml(name)} (${rows.length})</p>`;
-        if (name === 'activity_events') {
-            html += buildActivityTable(rows);
+
+    const entries = Object.entries(data);
+    if (!entries.length) { wrap.innerHTML = '<p class="status-msg">No data.</p>'; return; }
+
+    // Each table gets its own independently scrollable container
+    const multiple = entries.length > 1;
+    let html = multiple
+        ? `<div style="display:grid;grid-template-columns:repeat(${entries.length},1fr);gap:0.6rem">`
+        : '';
+
+    for (const [name, rows] of entries) {
+        const tableHtml = name === 'activity_events' ? buildActivityTable(rows) : buildTable(rows);
+        if (multiple) {
+            html += `<div>
+                <p class="section-label">${escHtml(name)} (${rows.length})</p>
+                <div style="overflow-x:auto;overflow-y:auto;max-height:240px">${tableHtml}</div>
+            </div>`;
         } else {
-            html += buildTable(rows);
+            html += `<p class="section-label">${escHtml(name)} (${rows.length})</p>
+                <div style="overflow-x:auto;overflow-y:auto;max-height:240px">${tableHtml}</div>`;
         }
     }
-    wrap.innerHTML = html || '<p class="status-msg">No data.</p>';
+
+    if (multiple) html += '</div>';
+    wrap.innerHTML = html;
 }
 
 // ── View: Charts ──────────────────────────────────────────────────────────

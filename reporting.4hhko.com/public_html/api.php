@@ -179,23 +179,27 @@ if ($resource === 'saved') {
             echo json_encode(['error' => 'DELETE requires a numeric id']);
             exit;
         }
+        // Verify the row exists and the caller is allowed to delete it
         if ($currentRole === 'super_admin') {
-            $stmt = $db->prepare("DELETE FROM report_comments WHERE id = ?");
-            $stmt->execute([$id]);
+            $chk = $db->prepare("SELECT id FROM report_comments WHERE id = ?");
+            $chk->execute([$id]);
         } elseif ($currentRole === 'analyst') {
-            $stmt = $db->prepare("DELETE FROM report_comments WHERE id = ? AND user_id = ?");
-            $stmt->execute([$id, $currentUserId]);
+            $chk = $db->prepare("SELECT id FROM report_comments WHERE id = ? AND user_id = ?");
+            $chk->execute([$id, $currentUserId]);
         } else {
             http_response_code(403);
             echo json_encode(['error' => 'Forbidden']);
             exit;
         }
-        if ($stmt->rowCount() === 0) {
+        if (!$chk->fetch()) {
             http_response_code(404);
             echo json_encode(['error' => 'Not found or not authorized']);
-        } else {
-            http_response_code(204);
+            exit;
         }
+        // Row confirmed — delete it
+        $del = $db->prepare("DELETE FROM report_comments WHERE id = ?");
+        $del->execute([$id]);
+        http_response_code(204);
     } else {
         http_response_code(405);
         echo json_encode(['error' => 'Method not allowed']);

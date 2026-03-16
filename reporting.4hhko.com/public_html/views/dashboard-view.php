@@ -55,7 +55,7 @@ $tabLabels = ['traffic' => 'Traffic', 'errors' => 'Errors', 'engagement' => 'Eng
         .chart-card h3 { font-size: 0.72rem; color: var(--pico-muted-color); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.04em; }
         .chart-card canvas { max-height: 180px; }
 
-        .data-table-wrap { overflow-x: auto; margin-bottom: 0.75rem; max-height: 260px; overflow-y: auto; }
+        .data-table-wrap { margin-bottom: 0.75rem; }
         .data-table-wrap table { width: 100%; font-size: 0.75rem; border-collapse: collapse; }
         .data-table-wrap th { position: sticky; top: 0; background: var(--pico-card-background-color); padding: 4px 8px; font-size: 0.72rem; border-bottom: 1px solid var(--pico-muted-border-color); text-align: left; }
         .data-table-wrap td { padding: 3px 8px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid var(--pico-muted-border-color); }

@@ -10,23 +10,34 @@ if (!defined('IN_APP')) { http_response_code(403); exit; }
     <title>User Management — 4hhko Analytics</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.classless.min.css">
     <style>
+        :root { font-size: 13px; }
+        body { padding: 0; }
+        header { padding: 0.4rem 1rem; }
         header nav { display: flex; justify-content: space-between; align-items: center; }
-        header nav ul { margin: 0; padding: 0; list-style: none; display: flex; gap: 1rem; align-items: center; }
-        header nav ul li a { color: inherit; }
+        header nav ul { margin: 0; padding: 0; list-style: none; display: flex; gap: 0.75rem; align-items: center; }
+        header nav ul li a { color: inherit; font-size: 0.85rem; }
+        main { padding: 0.75rem 1rem; max-width: 960px; }
+        h2 { font-size: 1rem; margin-bottom: 0.5rem; }
+        h3 { font-size: 0.875rem; margin: 0.75rem 0 0.4rem; }
 
-        .user-table { width: 100%; font-size: 0.875rem; }
-        .user-table th { white-space: nowrap; }
-        .user-table td { vertical-align: middle; }
-        .user-table select { margin: 0; padding: 0.2rem 0.5rem; font-size: 0.8rem; }
-        .user-table button { margin: 0; padding: 0.25rem 0.65rem; font-size: 0.8rem; }
-        .section-checks label { display: inline-flex; align-items: center; gap: 0.2rem; margin-right: 0.5rem; font-size: 0.8rem; }
-        .section-checks input { margin: 0; }
+        /* Users table */
+        .user-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        .user-table th { padding: 4px 8px; border-bottom: 1px solid var(--pico-muted-border-color); text-align: left; white-space: nowrap; font-size: 0.75rem; background: var(--pico-card-background-color); }
+        .user-table td { padding: 4px 8px; border-bottom: 1px solid var(--pico-muted-border-color); vertical-align: middle; }
+        .user-table select { margin: 0; padding: 2px 4px; font-size: 0.75rem; height: auto; }
+        .user-table button { margin: 0; padding: 2px 8px; font-size: 0.75rem; }
+        .section-checks { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+        .section-checks label { display: inline-flex; align-items: center; gap: 0.2rem; font-size: 0.75rem; margin: 0; }
+        .section-checks input[type=checkbox] { margin: 0; width: 12px; height: 12px; }
 
-        .add-user-form { margin-top: 2rem; }
-        .add-user-form fieldset { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
-        @media (max-width: 600px) { .add-user-form fieldset { grid-template-columns: 1fr; } }
-
-        #status-msg { font-size: 0.85rem; color: var(--pico-muted-color); margin-top: 0.5rem; }
+        /* Add user form */
+        .add-form { margin-top: 1rem; padding: 0.75rem; background: var(--pico-card-background-color); border-radius: var(--pico-border-radius); box-shadow: var(--pico-card-box-shadow); }
+        .add-form fieldset { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.5rem; padding: 0; border: none; margin: 0 0 0.5rem; }
+        @media (max-width: 700px) { .add-form fieldset { grid-template-columns: 1fr 1fr; } }
+        .add-form label { font-size: 0.75rem; font-weight: 600; display: block; }
+        .add-form input, .add-form select { font-size: 0.78rem; padding: 0.25rem 0.4rem; margin-top: 0.15rem; width: 100%; height: auto; }
+        .add-form button[type=submit] { font-size: 0.78rem; padding: 0.3rem 0.9rem; }
+        #status-msg { font-size: 0.75rem; color: var(--pico-muted-color); margin: 0.3rem 0 0; }
     </style>
 </head>
 <body>
@@ -45,16 +56,16 @@ if (!defined('IN_APP')) { http_response_code(403); exit; }
 <main>
     <h2>User Management</h2>
 
-    <div id="users-table-wrap">
-        <p>Loading users...</p>
+    <div style="overflow-x:auto">
+        <div id="users-table-wrap"><p>Loading users...</p></div>
     </div>
 
-    <div class="add-user-form">
+    <div class="add-form">
         <h3>Add New User</h3>
         <form id="addUserForm">
             <fieldset>
                 <label>Email<input type="email" id="new-email" required placeholder="user@example.com"></label>
-                <label>Password<input type="password" id="new-password" required placeholder="min 8 chars"></label>
+                <label>Password<input type="password" id="new-password" required placeholder="password"></label>
                 <label>Role
                     <select id="new-role">
                         <option value="viewer">viewer</option>
@@ -62,8 +73,8 @@ if (!defined('IN_APP')) { http_response_code(403); exit; }
                         <option value="super_admin">super_admin</option>
                     </select>
                 </label>
-                <label>Sections (analyst only)
-                    <div class="section-checks" id="new-sections">
+                <label>Sections
+                    <div class="section-checks" id="new-sections" style="margin-top:0.25rem">
                         <label><input type="checkbox" value="traffic"> traffic</label>
                         <label><input type="checkbox" value="errors"> errors</label>
                         <label><input type="checkbox" value="engagement"> engagement</label>
