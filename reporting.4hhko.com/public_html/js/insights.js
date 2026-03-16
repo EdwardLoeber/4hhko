@@ -1,5 +1,18 @@
 'use strict';
 
+// ── Date Range Helper ─────────────────────────────────────────────────────
+
+function fillDateRange(startDay, endDay) {
+    const result = [];
+    const d   = new Date(startDay + 'T12:00:00Z');
+    const end = new Date(endDay   + 'T12:00:00Z');
+    while (d <= end) {
+        result.push(d.toISOString().substring(0, 10));
+        d.setUTCDate(d.getUTCDate() + 1);
+    }
+    return result;
+}
+
 // ── UA Parsing ─────────────────────────────────────────────────────────────
 
 function parseUA(ua) {
@@ -57,15 +70,24 @@ const PALETTE = ['#4a90e2','#e74c3c','#27ae60','#f39c12','#9b59b6',
                  '#1abc9c','#e67e22','#3498db','#c0392b','#2ecc71','#95a5a6'];
 
 function renderUserCharts(data) {
-    // Chart 1: Sessions per day
-    const days  = (data.sessions_by_day || []).map(r => r.day);
-    const cnts  = (data.sessions_by_day || []).map(r => Number(r.cnt));
+    // Chart 1: Sessions per day (thin bar, first session → today)
+    const rawSessByDay = (data.sessions_by_day || []);
+    const sesByDayMap  = {};
+    for (const r of rawSessByDay) sesByDayMap[r.day] = Number(r.cnt);
+    const rawSesDays   = Object.keys(sesByDayMap).sort();
+    const sestoday     = new Date().toISOString().substring(0, 10);
+    const sesDays      = rawSesDays.length > 0 ? fillDateRange(rawSesDays[0], sestoday) : [];
     mkChart('u-chart1', {
-        type: 'line',
-        data: { labels: days, datasets: [{ label: 'Sessions', data: cnts,
-            borderColor: '#4a90e2', backgroundColor: 'rgba(74,144,226,0.1)',
-            tension: 0.3, fill: true, pointRadius: 3 }] },
-        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+        type: 'bar',
+        data: { labels: sesDays, datasets: [{ label: 'Sessions', data: sesDays.map(d => sesByDayMap[d] || 0),
+            backgroundColor: '#4a90e2', maxBarThickness: 10 }] },
+        options: {
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { maxTicksLimit: 15, maxRotation: 45 } },
+                y: { beginAtZero: true, ticks: { precision: 0 } }
+            }
+        }
     });
 
     // Chart 2: Language distribution (doughnut)
@@ -201,6 +223,45 @@ function renderTechTable(sessions) {
     }).join('');
 }
 
+// ── Export ─────────────────────────────────────────────────────────────────
+
+let _insightsData = null;   // cached after first load
+
+function exportInsightsCSV() {
+    if (!_insightsData) { alert('Data not loaded yet.'); return; }
+    const sessions = _insightsData.sessions || [];
+
+    const cols = [
+        'session_id', 'first_seen', 'last_seen', 'session_duration_secs',
+        'pageview_count', 'language', 'timezone',
+        'browser', 'os', 'device_type',
+        'screen_resolution', 'device_memory_gb', 'network_type', 'color_scheme'
+    ];
+
+    const csvCell = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+
+    const rows = sessions.map(s => {
+        const p   = parseUA(s.user_agent || '');
+        const res = (s.screen_width && s.screen_height) ? `${s.screen_width}x${s.screen_height}` : '';
+        return [
+            s.session_id, s.first_seen, s.last_seen, s.session_duration_secs,
+            s.pageview_count, s.language || '', s.timezone || '',
+            p.browser, p.os, p.mobile ? 'Mobile' : 'Desktop',
+            res, s.device_memory_gb || '', s.network_type || '', s.color_scheme || ''
+        ].map(csvCell);
+    });
+
+    const csv  = [cols.map(csvCell).join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = Object.assign(document.createElement('a'), {
+        href: url,
+        download: `insights_${new Date().toISOString().substring(0, 10)}.csv`
+    });
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
 // ── Tabs ───────────────────────────────────────────────────────────────────
 
 function initTabs() {
@@ -226,6 +287,7 @@ async function init() {
             throw new Error(body.error || `HTTP ${res.status}`);
         }
         const data = await res.json();
+        _insightsData = data;
 
         // Stats row
         const s = data.stats || {};

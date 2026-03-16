@@ -64,11 +64,14 @@ $role = CURRENT_USER_ROLE;
 <?php $__navActive = 'insights.php'; require __DIR__ . '/_nav.php'; ?>
 
 <main>
-    <div id="stats-row" class="stats-row">
-        <div class="stat-card"><div class="val" id="stat-sessions">—</div><div class="lbl">Unique Sessions</div></div>
-        <div class="stat-card"><div class="val" id="stat-pageviews">—</div><div class="lbl">Total Pageviews</div></div>
-        <div class="stat-card"><div class="val" id="stat-first">—</div><div class="lbl">First Access</div></div>
-        <div class="stat-card"><div class="val" id="stat-last">—</div><div class="lbl">Last Access</div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+        <div id="stats-row" class="stats-row" style="margin-bottom:0;flex:1">
+            <div class="stat-card"><div class="val" id="stat-sessions">—</div><div class="lbl">Unique Sessions</div></div>
+            <div class="stat-card"><div class="val" id="stat-pageviews">—</div><div class="lbl">Total Pageviews</div></div>
+            <div class="stat-card"><div class="val" id="stat-first">—</div><div class="lbl">First Access</div></div>
+            <div class="stat-card"><div class="val" id="stat-last">—</div><div class="lbl">Last Access</div></div>
+        </div>
+        <button onclick="exportInsightsCSV()" style="margin-left:0.75rem;padding:0.3rem 0.8rem;font-size:0.75rem;white-space:nowrap;flex-shrink:0">Export CSV</button>
     </div>
 
     <div class="tab-bar">

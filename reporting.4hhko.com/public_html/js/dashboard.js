@@ -181,6 +181,19 @@ function countByField(rows, field) {
     return counts;
 }
 
+// Returns an array of YYYY-MM-DD strings covering startDay through endDay (inclusive).
+// Uses UTC noon to avoid any DST-boundary off-by-one.
+function fillDateRange(startDay, endDay) {
+    const result = [];
+    const d   = new Date(startDay + 'T12:00:00Z');
+    const end = new Date(endDay   + 'T12:00:00Z');
+    while (d <= end) {
+        result.push(d.toISOString().substring(0, 10));
+        d.setUTCDate(d.getUTCDate() + 1);
+    }
+    return result;
+}
+
 // Returns an HSL color along a red→blue gradient based on network speed rank.
 // Fastest (5g) = red (hue 0), slowest (slow-2g) = blue (hue 240).
 function netTypeColor(type) {
@@ -194,19 +207,26 @@ function netTypeColor(type) {
 function renderTrafficCharts(data) {
     const pvRows = data.pageviews || [];
 
-    // Chart 1: Pageviews per day (line)
-    const byDay = countByDate(pvRows, 'timestamp');
-    const days  = Object.keys(byDay).sort();
+    // Chart 1: Pageviews per day (thin bar, full date range)
+    const byDay     = countByDate(pvRows, 'timestamp');
+    const rawDays   = Object.keys(byDay).sort();
+    const today     = new Date().toISOString().substring(0, 10);
+    const days      = rawDays.length > 0 ? fillDateRange(rawDays[0], today) : [];
     document.getElementById('chart1-label-traffic').textContent = 'Pageviews Per Day';
     makeChart('chart1-traffic', {
-        type: 'line',
+        type: 'bar',
         data: {
             labels: days,
-            datasets: [{ label: 'Pageviews', data: days.map(d => byDay[d]),
-                borderColor: '#4a90e2', backgroundColor: 'rgba(74,144,226,0.1)',
-                tension: 0.3, fill: true, pointRadius: 3 }]
+            datasets: [{ label: 'Pageviews', data: days.map(d => byDay[d] || 0),
+                backgroundColor: '#4a90e2', maxBarThickness: 10 }]
         },
-        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+        options: {
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { maxTicksLimit: 15, maxRotation: 45 } },
+                y: { beginAtZero: true, ticks: { precision: 0 } }
+            }
+        }
     });
 
     // Chart 2: Top 10 URLs (horizontal bar)
@@ -252,9 +272,13 @@ function renderTrafficCharts(data) {
         }
     });
 
-    // Chart 4: Network type distribution — gradient from red (5g/fast) to blue (slow-2g/slow)
+    // Chart 4: Network type distribution — always show all 6 known types (+ unknowns if present)
+    const NET_ORDER  = ['5g', '4g', 'wifi', '3g', '2g', 'slow-2g'];
     const netCounts  = countByField(pvRows, 'network_type');
-    const netEntries = Object.entries(netCounts).sort((a, b) => b[1] - a[1]);
+    // Any type in data not in our canonical list (e.g. 'unknown')
+    const extraTypes = Object.keys(netCounts).filter(k => !NET_ORDER.includes(k));
+    const allTypes   = [...NET_ORDER, ...extraTypes];
+    const netEntries = allTypes.map(t => [t, netCounts[t] || 0]);
     document.getElementById('chart4-label-traffic').textContent = 'Network Type Distribution';
     makeChart('chart4-traffic', {
         type: 'doughnut',
@@ -270,17 +294,26 @@ function renderTrafficCharts(data) {
 function renderErrorCharts(data) {
     const rows = data.errors || [];
 
-    // Chart 1: Errors per day (bar)
-    const byDay = countByDate(rows, 'timestamp');
-    const days  = Object.keys(byDay).sort();
+    // Chart 1: Errors per day (thin bar, first error → today)
+    const errByDay  = countByDate(rows, 'timestamp');
+    const rawErrDays = Object.keys(errByDay).sort();
+    const errToday  = new Date().toISOString().substring(0, 10);
+    const errDays   = rawErrDays.length > 0 ? fillDateRange(rawErrDays[0], errToday) : [];
     document.getElementById('chart1-label-errors').textContent = 'Errors Per Day';
     makeChart('chart1-errors', {
         type: 'bar',
         data: {
-            labels: days,
-            datasets: [{ label: 'Errors', data: days.map(d => byDay[d]), backgroundColor: '#e74c3c' }]
+            labels: errDays,
+            datasets: [{ label: 'Errors', data: errDays.map(d => errByDay[d] || 0),
+                backgroundColor: '#e74c3c', maxBarThickness: 10 }]
         },
-        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+        options: {
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { maxTicksLimit: 15, maxRotation: 45 } },
+                y: { beginAtZero: true, ticks: { precision: 0 } }
+            }
+        }
     });
 
     // Chart 2: Top error messages (horizontal bar)
@@ -365,8 +398,8 @@ function renderEngagementCharts(data) {
         options: { plugins: { legend: { position: 'right', labels: { font: { size: 11 } } } } }
     });
 
-    // Chart 2: Activity events per day (line) — engagement volume trend
-    const byDay = {};
+    // Chart 2: Activity events per day (thin bar, first event → today)
+    const aeByDay = {};
     for (const ev of allEvents) {
         let day;
         if (ev.t) {
@@ -376,19 +409,26 @@ function renderEngagementCharts(data) {
         } else {
             day = 'unknown';
         }
-        byDay[day] = (byDay[day] || 0) + 1;
+        aeByDay[day] = (aeByDay[day] || 0) + 1;
     }
-    const days = Object.keys(byDay).filter(d => d !== 'unknown').sort();
+    const rawAeDays = Object.keys(aeByDay).filter(d => d !== 'unknown').sort();
+    const aeToday   = new Date().toISOString().substring(0, 10);
+    const aeDays    = rawAeDays.length > 0 ? fillDateRange(rawAeDays[0], aeToday) : [];
     document.getElementById('chart2-label-engagement').textContent = 'Activity Events Per Day';
     makeChart('chart2-engagement', {
-        type: 'line',
+        type: 'bar',
         data: {
-            labels: days,
-            datasets: [{ label: 'Events', data: days.map(d => byDay[d]),
-                borderColor: '#27ae60', backgroundColor: 'rgba(39,174,96,0.1)',
-                tension: 0.3, fill: true, pointRadius: 3 }]
+            labels: aeDays,
+            datasets: [{ label: 'Events', data: aeDays.map(d => aeByDay[d] || 0),
+                backgroundColor: '#27ae60', maxBarThickness: 10 }]
         },
-        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+        options: {
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { maxTicksLimit: 15, maxRotation: 45 } },
+                y: { beginAtZero: true, ticks: { precision: 0 } }
+            }
+        }
     });
 
     // Chart 3: Event type breakdown (horizontal bar)

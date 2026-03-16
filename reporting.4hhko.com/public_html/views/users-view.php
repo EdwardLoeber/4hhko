@@ -51,6 +51,7 @@ if (!defined('IN_APP')) { http_response_code(403); exit; }
 <main>
     <h2>User Management</h2>
 
+    <p id="table-status-msg" style="font-size:0.75rem;margin:0 0 0.4rem;min-height:1em"></p>
     <div style="overflow-x:auto">
         <div id="users-table-wrap"><p>Loading users...</p></div>
     </div>

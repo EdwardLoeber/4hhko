@@ -55,8 +55,8 @@ function renderUsersTable(users) {
             </td>
             <td><div class="section-checks">${secChecks}</div></td>
             <td>
-                <button class="save-btn" data-uid="${u.id}">Save</button>
-                <button class="del-btn" data-uid="${u.id}" style="background:var(--pico-del-color,#e74c3c);color:#fff;margin-left:4px;">Delete</button>
+                <button type="button" class="save-btn" data-uid="${u.id}" style="font-size:0.75rem;padding:2px 8px">Save</button>
+                <button type="button" class="del-btn" data-uid="${u.id}" style="font-size:0.75rem;padding:2px 8px;background:#e74c3c;color:#fff;border:none;border-radius:4px;cursor:pointer;margin-left:4px">Delete</button>
             </td>
         </tr>`;
     }
@@ -89,24 +89,41 @@ async function loadUsers() {
 
 async function saveUser(uid) {
     const row      = document.getElementById(`row-${uid}`);
+    const saveBtn  = row.querySelector('.save-btn');
     const role     = row.querySelector('.role-select').value;
     const sections = [...row.querySelectorAll('.sec-chk:checked')].map(c => c.dataset.sec);
+    saveBtn.disabled = true;
     try {
         await apiUsers('PUT', uid, { role, sections });
-        flash(row.querySelector('.save-btn'), 'Saved ✓');
+        flash(saveBtn, 'Saved ✓');
+        showTableStatus('');
     } catch (e) {
-        alert('Save failed: ' + e.message);
+        flash(saveBtn, 'Error');
+        showTableStatus('Save failed: ' + e.message, 'red');
+    } finally {
+        saveBtn.disabled = false;
     }
 }
 
 async function deleteUser(uid, row) {
-    if (!confirm('Delete this user?')) return;
+    if (!confirm('Delete this user? This cannot be undone.')) return;
+    const delBtn = row.querySelector('.del-btn');
+    delBtn.disabled = true;
     try {
         await apiUsers('DELETE', uid);
         row.remove();
+        showTableStatus('');
     } catch (e) {
-        alert('Delete failed: ' + e.message);
+        delBtn.disabled = false;
+        showTableStatus('Delete failed: ' + e.message, 'red');
     }
+}
+
+function showTableStatus(msg, color) {
+    const el = document.getElementById('table-status-msg');
+    if (!el) return;
+    el.textContent  = msg;
+    el.style.color  = color || '';
 }
 
 function flash(btn, text) {
