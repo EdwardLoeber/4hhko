@@ -147,4 +147,13 @@ if (file_exists($vendorAutoload)) {
     $exportUrl = '/exports/' . $filename;
 }
 
+// Persist the export URL so viewers can access it via /api/saved
+$stmt = $db->prepare(
+    "INSERT INTO report_comments (user_id, category, comment, export_url, updated_at)
+     VALUES (?, ?, '', ?, NOW())
+     ON CONFLICT (user_id, category) DO UPDATE
+     SET export_url = EXCLUDED.export_url, updated_at = NOW()"
+);
+$stmt->execute([$userId, $category, $exportUrl]);
+
 echo json_encode(['url' => $exportUrl]);

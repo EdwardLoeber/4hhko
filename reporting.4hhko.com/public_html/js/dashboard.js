@@ -76,13 +76,51 @@ function buildTable(rows) {
     return html;
 }
 
+// Special table for activity_events: each row's `events` JSON array is
+// summarised as counts per type rather than shown as a raw blob.
+function buildActivityTable(rows) {
+    if (!rows.length) return '<p class="status-msg">No data.</p>';
+    let html = '<table><thead><tr>' +
+        '<th>ID</th><th>Session</th><th>URL</th><th>Timestamp</th>' +
+        '<th>Batched</th><th>click</th><th>scroll</th><th>mousemove</th>' +
+        '<th>keydown</th><th>keyup</th><th>idle</th>' +
+        '</tr></thead><tbody>';
+    for (const row of rows) {
+        let evts = row.events;
+        if (typeof evts === 'string') { try { evts = JSON.parse(evts); } catch (_) { evts = []; } }
+        if (!Array.isArray(evts)) evts = [];
+        const counts = {};
+        for (const ev of evts) { counts[ev.type] = (counts[ev.type] || 0) + 1; }
+        const idleCount = (counts['idle_start'] || 0) + (counts['idle_end'] || 0);
+        html += `<tr>
+            <td>${row.id ?? ''}</td>
+            <td title="${escHtml(row.session_id ?? '')}">${escHtml((row.session_id ?? '').substring(0, 8))}…</td>
+            <td title="${escHtml(row.url ?? '')}">${escHtml((row.url ?? '').replace(/^https?:\/\/[^/]+/, '') || '/')}</td>
+            <td>${escHtml(row.timestamp ?? '')}</td>
+            <td>${evts.length}</td>
+            <td>${counts['click'] || 0}</td>
+            <td>${counts['scroll'] || 0}</td>
+            <td>${counts['mousemove'] || 0}</td>
+            <td>${counts['keydown'] || 0}</td>
+            <td>${counts['keyup'] || 0}</td>
+            <td>${idleCount}</td>
+        </tr>`;
+    }
+    html += '</tbody></table>';
+    return html;
+}
+
 function renderTables(category, data) {
     const wrap = document.getElementById(`tables-${category}`);
     if (!wrap) return;
     let html = '';
     for (const [name, rows] of Object.entries(data)) {
-        html += `<h4 style="margin:1rem 0 0.5rem">${escHtml(name)} <small style="font-weight:normal;color:var(--pico-muted-color)">(${rows.length} rows)</small></h4>`;
-        html += buildTable(rows);
+        html += `<p class="section-label">${escHtml(name)} (${rows.length})</p>`;
+        if (name === 'activity_events') {
+            html += buildActivityTable(rows);
+        } else {
+            html += buildTable(rows);
+        }
     }
     wrap.innerHTML = html || '<p class="status-msg">No data.</p>';
 }
@@ -183,14 +221,48 @@ function renderErrorCharts(data) {
     });
 }
 
+// Unpack all individual sub-events from activity_events rows.
+// Each row has an `events` field that is either a JSON string or already
+// a parsed array (PostgreSQL JSONB comes through as an object via PDO).
+// Sub-events: { type, t (ms epoch), x?, y?, button?, code?, start?, end?, duration? }
+function unpackActivityEvents(aeRows) {
+    const all = [];
+    for (const row of aeRows) {
+        let evts = row.events;
+        if (typeof evts === 'string') {
+            try { evts = JSON.parse(evts); } catch (_) { continue; }
+        }
+        if (!Array.isArray(evts)) continue;
+        for (const ev of evts) {
+            // Attach the batch's session/url for context; keep the sub-event's own `t`
+            all.push({ ...ev, _session: row.session_id, _url: row.url });
+        }
+    }
+    return all;
+}
+
 function renderEngagementCharts(data) {
     const aeRows = data.activity_events || [];
-    const evRows = data.events          || [];
 
-    // Chart 1: activity events per day
-    const byDay = countByDate(aeRows, 'timestamp');
-    const days  = Object.keys(byDay).sort();
-    document.getElementById('chart1-label-engagement').textContent = 'Activity Events Per Day';
+    // Unpack individual sub-events from the events JSONB array
+    const allEvents = unpackActivityEvents(aeRows);
+
+    // Chart 1: individual activity events per day
+    // Sub-events use `t` (epoch ms); fall back to row timestamp if absent
+    const byDay = {};
+    for (const ev of allEvents) {
+        let day;
+        if (ev.t) {
+            day = new Date(ev.t).toISOString().substring(0, 10);
+        } else if (ev.start) {
+            day = new Date(ev.start).toISOString().substring(0, 10);
+        } else {
+            day = 'unknown';
+        }
+        byDay[day] = (byDay[day] || 0) + 1;
+    }
+    const days = Object.keys(byDay).filter(d => d !== 'unknown').sort();
+    document.getElementById('chart1-label-engagement').textContent = 'Individual Activity Events Per Day';
     makeChart('chart1-engagement', {
         type: 'line',
         data: {
@@ -202,15 +274,30 @@ function renderEngagementCharts(data) {
         options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
     });
 
-    // Chart 2: top event types
-    const byType = countByField(aeRows, 'event_type');
-    const sorted = Object.entries(byType).sort((a, b) => b[1] - a[1]).slice(0, 10);
-    document.getElementById('chart2-label-engagement').textContent = 'Top Activity Event Types';
+    // Chart 2: breakdown of sub-event types
+    // Types from collector: mousemove, click, scroll, keydown, keyup, idle_start, idle_end
+    const TYPE_COLORS = {
+        click:      '#e74c3c',
+        scroll:     '#3498db',
+        mousemove:  '#95a5a6',
+        keydown:    '#9b59b6',
+        keyup:      '#8e44ad',
+        idle_start: '#e67e22',
+        idle_end:   '#f39c12'
+    };
+    const byType = {};
+    for (const ev of allEvents) {
+        const t = ev.type || 'unknown';
+        byType[t] = (byType[t] || 0) + 1;
+    }
+    const sorted = Object.entries(byType).sort((a, b) => b[1] - a[1]);
+    const typeColors = sorted.map(([t]) => TYPE_COLORS[t] || '#27ae60');
+    document.getElementById('chart2-label-engagement').textContent = 'Event Type Breakdown';
     makeChart('chart2-engagement', {
         type: 'bar',
         data: {
             labels: sorted.map(([t]) => t),
-            datasets: [{ label: 'Count', data: sorted.map(([, n]) => n), backgroundColor: '#27ae60' }]
+            datasets: [{ label: 'Count', data: sorted.map(([, n]) => n), backgroundColor: typeColors }]
         },
         options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
     });
@@ -275,6 +362,95 @@ function initCommentBox(category, comments) {
     });
 }
 
+// ── View: Saved Reports tab ───────────────────────────────────────────────
+
+const BADGE_COLORS = { traffic: '#4a90e2', errors: '#e74c3c', engagement: '#27ae60' };
+
+async function loadSavedReports() {
+    const container = document.getElementById('saved-reports-container');
+    if (!container) return;
+    container.innerHTML = '<p class="status-msg">Loading...</p>';
+    try {
+        const res  = await fetch('/api/saved', { credentials: 'same-origin' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const rows = await res.json();
+
+        if (!rows.length) {
+            container.innerHTML = '<p class="status-msg">No saved reports yet.</p>';
+            return;
+        }
+
+        const categoryOrder = ['traffic', 'errors', 'engagement'];
+        const grouped = {};
+        for (const r of rows) {
+            if (!grouped[r.category]) grouped[r.category] = [];
+            grouped[r.category].push(r);
+        }
+
+        let html = '<table style="width:100%;font-size:0.85rem;border-collapse:collapse">' +
+            '<thead><tr>' +
+            '<th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd">Category</th>' +
+            '<th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd">Analyst</th>' +
+            '<th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd">Comment</th>' +
+            '<th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd">Export</th>' +
+            '<th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd">Updated</th>' +
+            '<th style="padding:6px 8px;border-bottom:1px solid #ddd"></th>' +
+            '</tr></thead><tbody>';
+
+        for (const cat of categoryOrder) {
+            if (!grouped[cat]) continue;
+            for (const row of grouped[cat]) {
+                const color   = BADGE_COLORS[cat] || '#888';
+                const date    = new Date(row.updated_at).toLocaleString();
+                const preview = row.comment ? (row.comment.length > 60 ? row.comment.substring(0, 60) + '…' : row.comment) : '—';
+                const exportCell = row.export_url
+                    ? `<a href="${escHtml(row.export_url)}" target="_blank">Download</a>`
+                    : '—';
+                html += `<tr id="saved-row-${row.id}">
+                    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0">
+                        <span style="background:${color};color:#fff;font-size:0.7rem;padding:2px 7px;border-radius:999px;font-weight:700">${escHtml(cat)}</span>
+                    </td>
+                    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0">${escHtml(row.email)}</td>
+                    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;color:#555">${escHtml(preview)}</td>
+                    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0">${exportCell}</td>
+                    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;white-space:nowrap;color:#888">${escHtml(date)}</td>
+                    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0">
+                        <button style="font-size:0.75rem;padding:2px 8px;background:#e74c3c;color:#fff;border:none;border-radius:4px;cursor:pointer"
+                            onclick="deleteSavedReport(${row.id})">Delete</button>
+                    </td>
+                </tr>`;
+            }
+        }
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch (e) {
+        container.innerHTML = `<p style="color:red">Failed to load: ${escHtml(e.message)}</p>`;
+    }
+}
+
+async function deleteSavedReport(id) {
+    if (!confirm('Delete this saved report entry?')) return;
+    try {
+        const res = await fetch(`/api/saved/${id}`, {
+            method:      'DELETE',
+            credentials: 'same-origin'
+        });
+        if (res.status === 204 || res.ok) {
+            const row = document.getElementById(`saved-row-${id}`);
+            if (row) row.remove();
+        } else {
+            const data = await res.json().catch(() => ({}));
+            alert('Delete failed: ' + (data.error || res.status));
+        }
+    } catch (e) {
+        alert('Delete failed: ' + e.message);
+    }
+}
+
+// ── Control: Tabs ─────────────────────────────────────────────────────────
+
+let savedReportsLoaded = false;
+
 function initTabs(comments) {
     const tabs = document.querySelectorAll('.tab-btn');
     tabs.forEach(tab => {
@@ -285,7 +461,11 @@ function initTabs(comments) {
             tab.classList.add('active');
             const section = document.getElementById(`section-${cat}`);
             if (section) section.classList.add('active');
-            loadReport(cat);
+            if (cat === 'saved-reports') {
+                if (!savedReportsLoaded) { savedReportsLoaded = true; loadSavedReports(); }
+            } else {
+                loadReport(cat);
+            }
         });
     });
 }

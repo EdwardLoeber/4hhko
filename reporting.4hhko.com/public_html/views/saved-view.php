@@ -96,9 +96,12 @@ $role = CURRENT_USER_ROLE;
             html += `<h3><span class="badge badge-${cat}">${cat}</span></h3>`;
             for (const row of grouped[cat]) {
                 const date = new Date(row.updated_at).toLocaleString();
+                const exportLink = row.export_url
+                    ? ` &nbsp;<a href="${escHtml(row.export_url)}" target="_blank" style="font-size:0.78rem">Download Report</a>`
+                    : '';
                 html += `
                     <div class="comment-card ${cat}">
-                        <div class="comment-meta">${escHtml(row.email)} &mdash; ${escHtml(date)}</div>
+                        <div class="comment-meta">${escHtml(row.email)} &mdash; ${escHtml(date)}${exportLink}</div>
                         <div class="comment-body">${escHtml(row.comment)}</div>
                     </div>`;
             }

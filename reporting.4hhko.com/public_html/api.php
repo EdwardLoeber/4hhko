@@ -161,21 +161,45 @@ if ($resource === 'comments') {
     exit;
 }
 
-// ── Special: Saved (all analyst comments, for viewer page) ────────────────
+// ── Special: Saved (all analyst comments + export links) ─────────────────
 if ($resource === 'saved') {
-    if ($method !== 'GET') {
+    if ($method === 'GET') {
+        $stmt = $db->query(
+            "SELECT rc.id, u.email, rc.category, rc.comment, rc.export_url, rc.updated_at
+             FROM report_comments rc
+             JOIN users u ON u.id = rc.user_id
+             WHERE rc.comment <> '' OR rc.export_url IS NOT NULL
+             ORDER BY rc.category, rc.updated_at DESC"
+        );
+        echo json_encode($stmt->fetchAll());
+    } elseif ($method === 'DELETE') {
+        // Analysts can delete their own; super_admin can delete any
+        if (!$id || !ctype_digit((string)$id)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'DELETE requires a numeric id']);
+            exit;
+        }
+        if ($currentRole === 'super_admin') {
+            $stmt = $db->prepare("DELETE FROM report_comments WHERE id = ?");
+            $stmt->execute([$id]);
+        } elseif ($currentRole === 'analyst') {
+            $stmt = $db->prepare("DELETE FROM report_comments WHERE id = ? AND user_id = ?");
+            $stmt->execute([$id, $currentUserId]);
+        } else {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden']);
+            exit;
+        }
+        if ($stmt->rowCount() === 0) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Not found or not authorized']);
+        } else {
+            http_response_code(204);
+        }
+    } else {
         http_response_code(405);
         echo json_encode(['error' => 'Method not allowed']);
-        exit;
     }
-    $stmt = $db->query(
-        "SELECT u.email, rc.category, rc.comment, rc.updated_at
-         FROM report_comments rc
-         JOIN users u ON u.id = rc.user_id
-         WHERE rc.comment <> ''
-         ORDER BY rc.category, rc.updated_at DESC"
-    );
-    echo json_encode($stmt->fetchAll());
     exit;
 }
 

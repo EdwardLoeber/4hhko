@@ -20,18 +20,25 @@ $tabLabels = ['traffic' => 'Traffic', 'errors' => 'Errors', 'engagement' => 'Eng
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.classless.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        header nav { display: flex; justify-content: space-between; align-items: center; }
-        header nav ul { margin: 0; padding: 0; list-style: none; display: flex; gap: 1rem; align-items: center; }
-        header nav ul li a { color: inherit; }
+        :root { font-size: 14px; }
+        body { padding: 0; }
 
-        .tab-bar { display: flex; gap: 0; border-bottom: 2px solid var(--pico-muted-border-color); margin-bottom: 1.5rem; }
+        header { padding: 0.5rem 1rem; }
+        header nav { display: flex; justify-content: space-between; align-items: center; }
+        header nav ul { margin: 0; padding: 0; list-style: none; display: flex; gap: 0.75rem; align-items: center; }
+        header nav ul li a { color: inherit; font-size: 0.85rem; }
+        header nav strong { font-size: 0.95rem; }
+
+        main { padding: 0.75rem 1rem; }
+
+        .tab-bar { display: flex; gap: 0; border-bottom: 2px solid var(--pico-muted-border-color); margin-bottom: 0.75rem; }
         .tab-btn {
-            padding: 0.6rem 1.4rem;
+            padding: 0.4rem 0.9rem;
             cursor: pointer;
             background: none;
             border: none;
-            border-bottom: 3px solid transparent;
-            font-size: 0.95rem;
+            border-bottom: 2px solid transparent;
+            font-size: 0.8rem;
             color: var(--pico-muted-color);
             margin-bottom: -2px;
         }
@@ -41,25 +48,30 @@ $tabLabels = ['traffic' => 'Traffic', 'errors' => 'Errors', 'engagement' => 'Eng
         .report-section { display: none; }
         .report-section.active { display: block; }
 
-        .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+        .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 0.75rem; }
         @media (max-width: 700px) { .chart-grid { grid-template-columns: 1fr; } }
 
-        .chart-card { background: var(--pico-card-background-color); border-radius: var(--pico-border-radius); padding: 1rem; box-shadow: var(--pico-card-box-shadow); }
-        .chart-card h3 { font-size: 0.875rem; color: var(--pico-muted-color); margin-bottom: 0.75rem; }
+        .chart-card { background: var(--pico-card-background-color); border-radius: var(--pico-border-radius); padding: 0.6rem 0.8rem; box-shadow: var(--pico-card-box-shadow); }
+        .chart-card h3 { font-size: 0.72rem; color: var(--pico-muted-color); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.04em; }
+        .chart-card canvas { max-height: 180px; }
 
-        .data-table-wrap { overflow-x: auto; margin-bottom: 1.5rem; }
-        .data-table-wrap table { width: 100%; font-size: 0.8rem; }
-        .data-table-wrap td { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .data-table-wrap { overflow-x: auto; margin-bottom: 0.75rem; max-height: 260px; overflow-y: auto; }
+        .data-table-wrap table { width: 100%; font-size: 0.75rem; border-collapse: collapse; }
+        .data-table-wrap th { position: sticky; top: 0; background: var(--pico-card-background-color); padding: 4px 8px; font-size: 0.72rem; border-bottom: 1px solid var(--pico-muted-border-color); text-align: left; }
+        .data-table-wrap td { padding: 3px 8px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid var(--pico-muted-border-color); }
 
-        .status-msg { color: var(--pico-muted-color); font-size: 0.875rem; padding: 0.5rem 0; }
+        .status-msg { color: var(--pico-muted-color); font-size: 0.8rem; padding: 0.3rem 0; }
 
-        .comment-section { margin-top: 1rem; }
-        .comment-section label { font-weight: 600; font-size: 0.9rem; }
-        .comment-section textarea { width: 100%; min-height: 100px; }
-        .comment-status { font-size: 0.8rem; color: var(--pico-muted-color); }
+        .comment-section { margin-top: 0.6rem; }
+        .comment-section label { font-weight: 600; font-size: 0.8rem; display: block; margin-bottom: 0.2rem; }
+        .comment-section textarea { width: 100%; min-height: 70px; font-size: 0.8rem; padding: 0.4rem; }
+        .comment-status { font-size: 0.72rem; color: var(--pico-muted-color); }
 
-        .export-row { display: flex; align-items: center; gap: 1rem; margin-top: 0.75rem; }
-        .export-row a { font-size: 0.85rem; }
+        .export-row { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.4rem; }
+        .export-row button { font-size: 0.78rem; padding: 0.3rem 0.75rem; }
+        .export-row a { font-size: 0.78rem; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--pico-muted-color); margin: 0.5rem 0 0.3rem; }
     </style>
 </head>
 <body>
@@ -88,6 +100,7 @@ $tabLabels = ['traffic' => 'Traffic', 'errors' => 'Errors', 'engagement' => 'Eng
             <?= $tabLabels[$tab] ?>
         </button>
     <?php endforeach; ?>
+        <button class="tab-btn" data-tab="saved-reports">Saved Reports</button>
     </div>
 
     <?php foreach ($visibleTabs as $i => $tab): ?>
@@ -122,6 +135,12 @@ $tabLabels = ['traffic' => 'Traffic', 'errors' => 'Errors', 'engagement' => 'Eng
 
     </section>
     <?php endforeach; ?>
+
+    <section id="section-saved-reports" class="report-section">
+        <h3>Saved Reports</h3>
+        <p style="color:var(--pico-muted-color);font-size:0.875rem">Analyst comments and exported reports. You can delete entries you own<?= $role === 'super_admin' ? ' (or any entry as super_admin)' : '' ?>.</p>
+        <div id="saved-reports-container"><p class="status-msg">Loading...</p></div>
+    </section>
 
 <?php endif; ?>
 </main>
