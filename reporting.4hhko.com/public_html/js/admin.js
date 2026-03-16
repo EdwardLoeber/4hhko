@@ -22,6 +22,7 @@ async function apiUsers(method, id, body) {
         headers,
         body: body ? JSON.stringify(body) : (method === 'DELETE' ? '{}' : undefined)
     });
+    if (res.status === 401) { window.location.href = '/login.php'; return null; }
     if (!res.ok && res.status !== 204) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || `HTTP ${res.status}`);

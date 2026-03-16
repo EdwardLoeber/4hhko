@@ -92,7 +92,6 @@ $tabLabels = ['traffic' => 'Traffic', 'errors' => 'Errors', 'engagement' => 'Eng
             <?= $tabLabels[$tab] ?>
         </button>
     <?php endforeach; ?>
-        <button class="tab-btn" data-tab="saved-reports">Saved Reports</button>
     </div>
 
     <?php foreach ($visibleTabs as $i => $tab): ?>
@@ -135,12 +134,6 @@ $tabLabels = ['traffic' => 'Traffic', 'errors' => 'Errors', 'engagement' => 'Eng
 
     </section>
     <?php endforeach; ?>
-
-    <section id="section-saved-reports" class="report-section">
-        <h3>Saved Reports</h3>
-        <p style="color:var(--pico-muted-color);font-size:0.875rem">Analyst comments and exported reports. You can delete entries you own<?= $role === 'super_admin' ? ' (or any entry as super_admin)' : '' ?>.</p>
-        <div id="saved-reports-container"><p class="status-msg">Loading...</p></div>
-    </section>
 
 <?php endif; ?>
 </main>

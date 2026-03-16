@@ -527,94 +527,7 @@ function initCommentBox(category, comments) {
     });
 }
 
-// ── View: Saved Reports tab ───────────────────────────────────────────────
-
-const BADGE_COLORS = { traffic: '#4a90e2', errors: '#e74c3c', engagement: '#27ae60' };
-
-async function loadSavedReports() {
-    const container = document.getElementById('saved-reports-container');
-    if (!container) return;
-    container.innerHTML = '<p class="status-msg">Loading...</p>';
-    try {
-        const res  = await fetch('/api/saved', { credentials: 'same-origin' });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const rows = await res.json();
-
-        if (!rows.length) {
-            container.innerHTML = '<p class="status-msg">No saved reports yet.</p>';
-            return;
-        }
-
-        const categoryOrder = ['traffic', 'errors', 'engagement'];
-        const grouped = {};
-        for (const r of rows) {
-            if (!grouped[r.category]) grouped[r.category] = [];
-            grouped[r.category].push(r);
-        }
-
-        let html = '<table style="width:100%;font-size:0.85rem;border-collapse:collapse">' +
-            '<thead><tr>' +
-            '<th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd">Category</th>' +
-            '<th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd">Analyst</th>' +
-            '<th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd">Comment</th>' +
-            '<th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd">Export</th>' +
-            '<th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd">Updated</th>' +
-            '<th style="padding:6px 8px;border-bottom:1px solid #ddd"></th>' +
-            '</tr></thead><tbody>';
-
-        for (const cat of categoryOrder) {
-            if (!grouped[cat]) continue;
-            for (const row of grouped[cat]) {
-                const color   = BADGE_COLORS[cat] || '#888';
-                const date    = new Date(row.updated_at).toLocaleString();
-                const preview = row.comment ? (row.comment.length > 60 ? row.comment.substring(0, 60) + '…' : row.comment) : '—';
-                const exportCell = row.export_url
-                    ? `<a href="${escHtml(row.export_url)}" target="_blank">Download</a>`
-                    : '—';
-                html += `<tr id="saved-row-${row.id}">
-                    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0">
-                        <span style="background:${color};color:#fff;font-size:0.7rem;padding:2px 7px;border-radius:999px;font-weight:700">${escHtml(cat)}</span>
-                    </td>
-                    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0">${escHtml(row.email)}</td>
-                    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;color:#555">${escHtml(preview)}</td>
-                    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0">${exportCell}</td>
-                    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;white-space:nowrap;color:#888">${escHtml(date)}</td>
-                    <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0">
-                        <button style="font-size:0.75rem;padding:2px 8px;background:#e74c3c;color:#fff;border:none;border-radius:4px;cursor:pointer"
-                            onclick="deleteSavedReport(${row.id})">Delete</button>
-                    </td>
-                </tr>`;
-            }
-        }
-        html += '</tbody></table>';
-        container.innerHTML = html;
-    } catch (e) {
-        container.innerHTML = `<p style="color:red">Failed to load: ${escHtml(e.message)}</p>`;
-    }
-}
-
-async function deleteSavedReport(id) {
-    if (!confirm('Delete this saved report entry?')) return;
-    try {
-        const res = await fetch(`/api/saved/${id}`, {
-            method:      'DELETE',
-            credentials: 'same-origin'
-        });
-        if (res.status === 204 || res.ok) {
-            const row = document.getElementById(`saved-row-${id}`);
-            if (row) row.remove();
-        } else {
-            const data = await res.json().catch(() => ({}));
-            alert('Delete failed: ' + (data.error || res.status));
-        }
-    } catch (e) {
-        alert('Delete failed: ' + e.message);
-    }
-}
-
 // ── Control: Tabs ─────────────────────────────────────────────────────────
-
-let savedReportsLoaded = false;
 
 function initTabs(comments) {
     const tabs = document.querySelectorAll('.tab-btn');
@@ -626,11 +539,7 @@ function initTabs(comments) {
             tab.classList.add('active');
             const section = document.getElementById(`section-${cat}`);
             if (section) section.classList.add('active');
-            if (cat === 'saved-reports') {
-                if (!savedReportsLoaded) { savedReportsLoaded = true; loadSavedReports(); }
-            } else {
-                loadReport(cat);
-            }
+            loadReport(cat);
         });
     });
 }

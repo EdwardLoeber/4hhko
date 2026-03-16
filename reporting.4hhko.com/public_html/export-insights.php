@@ -204,4 +204,7 @@ $stmt = $db->prepare(
 );
 $stmt->execute([$userId, $comment, $exportUrl]);
 
+// Enforce global cap of 10 saved reports — delete oldest beyond the limit
+$db->exec("DELETE FROM report_comments WHERE id NOT IN (SELECT id FROM report_comments ORDER BY updated_at DESC LIMIT 10)");
+
 echo json_encode(['url' => $exportUrl]);

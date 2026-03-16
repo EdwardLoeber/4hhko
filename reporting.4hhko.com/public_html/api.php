@@ -179,7 +179,7 @@ if ($resource === 'saved') {
              FROM report_comments rc
              JOIN users u ON u.id = rc.user_id
              WHERE rc.comment <> '' OR rc.export_url IS NOT NULL
-             ORDER BY rc.category, rc.updated_at DESC"
+             ORDER BY rc.updated_at DESC"
         );
         echo json_encode($stmt->fetchAll());
     } elseif ($method === 'DELETE') {

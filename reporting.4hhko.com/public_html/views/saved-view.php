@@ -11,6 +11,9 @@ $role = CURRENT_USER_ROLE;
     <title>Saved Reports — 4hhko Analytics</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.classless.min.css">
     <style>
+        :root { font-size: 14px; }
+        body { padding: 0; }
+
         header { padding: 0.5rem 1rem; border-bottom: 1px solid var(--pico-muted-border-color); }
         header nav { display: flex; justify-content: space-between; align-items: center; }
         header nav ul { margin: 0; padding: 0; list-style: none; display: flex; gap: 0.75rem; align-items: center; }
@@ -20,9 +23,11 @@ $role = CURRENT_USER_ROLE;
         header nav strong { font-size: 0.95rem; }
         .nav-user { font-size: 0.78rem; padding: 0.15rem 0.55rem; background: var(--pico-muted-border-color); border-radius: 4px; color: var(--pico-muted-color); }
 
+        main { padding: 0.75rem 1rem; }
+
         .badge {
             display: inline-block;
-            font-size: 0.72rem;
+            font-size: 0.7rem;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.04em;
@@ -35,16 +40,28 @@ $role = CURRENT_USER_ROLE;
         .badge-engagement { background: #27ae60; }
         .badge-insights   { background: #9b59b6; }
 
-        .comment-card { border-left: 4px solid var(--pico-muted-border-color); padding: 0.75rem 1rem; margin-bottom: 1rem; }
-        .comment-card.traffic    { border-color: #4a90e2; }
-        .comment-card.errors     { border-color: #e74c3c; }
-        .comment-card.engagement { border-color: #27ae60; }
-        .comment-card.insights   { border-color: #9b59b6; }
+        .report-list { display: flex; flex-direction: column; gap: 0.5rem; }
 
-        .comment-meta { font-size: 0.78rem; color: var(--pico-muted-color); margin-bottom: 0.25rem; }
-        .comment-body { white-space: pre-wrap; font-size: 0.9rem; }
-        .empty-msg { color: var(--pico-muted-color); }
-
+        .report-entry {
+            display: flex;
+            align-items: baseline;
+            gap: 0.6rem;
+            padding: 0.5rem 0.75rem;
+            background: var(--pico-card-background-color);
+            border-radius: var(--pico-border-radius);
+            box-shadow: var(--pico-card-box-shadow);
+            font-size: 0.8rem;
+        }
+        .report-entry .meta { color: var(--pico-muted-color); font-size: 0.72rem; white-space: nowrap; }
+        .report-entry .body { flex: 1; color: var(--pico-color); white-space: pre-wrap; word-break: break-word; }
+        .report-entry .actions { display: flex; gap: 0.4rem; align-items: center; flex-shrink: 0; }
+        .report-entry a { font-size: 0.75rem; }
+        .del-saved-btn {
+            font-size: 0.72rem; padding: 2px 8px;
+            background: #e74c3c; color: #fff;
+            border: none; border-radius: 4px; cursor: pointer;
+        }
+        .status-msg { color: var(--pico-muted-color); font-size: 0.8rem; }
     </style>
 </head>
 <body>
@@ -52,53 +69,67 @@ $role = CURRENT_USER_ROLE;
 <?php $__navActive = 'saved.php'; require __DIR__ . '/_nav.php'; ?>
 
 <main>
-    <h2>Saved Reports</h2>
-    <p>Analyst comments published across all report categories.</p>
-
-    <div id="comments-container">
-        <p class="empty-msg">Loading...</p>
+    <p class="status-msg" style="margin-bottom:0.5rem">Most recent <?= $role === 'super_admin' ? '— you can delete any entry' : '' ?> (up to 10 total)</p>
+    <div id="report-list" class="report-list">
+        <p class="status-msg">Loading...</p>
     </div>
 </main>
 
 <script>
 (async function () {
-    const container = document.getElementById('comments-container');
+    const list = document.getElementById('report-list');
     try {
         const res  = await fetch('/api/saved', { credentials: 'same-origin' });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const rows = await res.json();
 
         if (!rows.length) {
-            container.innerHTML = '<p class="empty-msg">No analyst comments have been saved yet.</p>';
+            list.innerHTML = '<p class="status-msg">No saved reports yet.</p>';
             return;
         }
 
-        const categoryOrder = ['traffic', 'errors', 'engagement', 'insights'];
-        const grouped = {};
-        for (const r of rows) {
-            if (!grouped[r.category]) grouped[r.category] = [];
-            grouped[r.category].push(r);
-        }
+        list.innerHTML = rows.map(row => {
+            const date       = new Date(row.updated_at).toLocaleString();
+            const cat        = escHtml(row.category);
+            const exportLink = row.export_url
+                ? `<a href="${escHtml(row.export_url)}" target="_blank">Download</a>`
+                : '';
+            const canDelete  = <?= json_encode($role === 'super_admin' || $role === 'analyst') ?>;
+            const delBtn     = canDelete
+                ? `<button class="del-saved-btn" onclick="deleteSaved(${row.id}, this)">Delete</button>`
+                : '';
+            return `<div class="report-entry" id="saved-${row.id}">
+                <span class="badge badge-${cat}">${cat}</span>
+                <span class="meta">${escHtml(row.email)} &mdash; ${escHtml(date)}</span>
+                ${row.comment ? `<span class="body">${escHtml(row.comment)}</span>` : ''}
+                <span class="actions">${exportLink}${delBtn}</span>
+            </div>`;
+        }).join('');
 
-        let html = '';
-        for (const cat of categoryOrder) {
-            if (!grouped[cat]) continue;
-            html += `<h3><span class="badge badge-${cat}">${cat}</span></h3>`;
-            for (const row of grouped[cat]) {
-                const date = new Date(row.updated_at).toLocaleString();
-                const exportLink = row.export_url
-                    ? ` &nbsp;<a href="${escHtml(row.export_url)}" target="_blank" style="font-size:0.78rem">Download Report</a>`
-                    : '';
-                html += `
-                    <div class="comment-card ${cat}">
-                        <div class="comment-meta">${escHtml(row.email)} &mdash; ${escHtml(date)}${exportLink}</div>
-                        ${row.comment ? `<div class="comment-body">${escHtml(row.comment)}</div>` : ''}
-                    </div>`;
-            }
-        }
-        container.innerHTML = html;
     } catch (e) {
-        container.innerHTML = '<p style="color:red">Failed to load comments: ' + escHtml(e.message) + '</p>';
+        list.innerHTML = '<p style="color:red">Failed to load: ' + escHtml(e.message) + '</p>';
+    }
+
+    async function deleteSaved(id, btn) {
+        if (!confirm('Delete this entry?')) return;
+        btn.disabled = true;
+        try {
+            const res = await fetch(`/api/saved/${id}`, {
+                method: 'POST', credentials: 'same-origin',
+                headers: { 'X-HTTP-Method-Override': 'DELETE', 'Content-Type': 'application/json' },
+                body: '{}'
+            });
+            if (res.status === 204 || res.ok) {
+                document.getElementById('saved-' + id)?.remove();
+            } else {
+                const d = await res.json().catch(() => ({}));
+                alert('Delete failed: ' + (d.error || res.status));
+                btn.disabled = false;
+            }
+        } catch (e) {
+            alert('Delete failed: ' + e.message);
+            btn.disabled = false;
+        }
     }
 
     function escHtml(s) {
