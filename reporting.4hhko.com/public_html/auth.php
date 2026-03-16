@@ -12,7 +12,9 @@ define('CURRENT_USER_SECTIONS', $_SESSION['sections'] ?? []);
 
 function canSeeSection(string $section): bool {
     if (CURRENT_USER_ROLE === 'super_admin') return true;
-    if (CURRENT_USER_ROLE === 'viewer') return false;
     $secs = CURRENT_USER_SECTIONS;
-    return empty($secs) || in_array($section, $secs, true);
+    // Analysts with no sections assigned default to seeing all sections.
+    // Viewers must have sections explicitly assigned; empty = no access.
+    if (empty($secs)) return CURRENT_USER_ROLE !== 'viewer';
+    return in_array($section, $secs, true);
 }

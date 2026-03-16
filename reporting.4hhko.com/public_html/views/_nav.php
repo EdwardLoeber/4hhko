@@ -13,10 +13,8 @@ function __navLink(string $href, string $label, string $active): string {
     <nav>
         <ul>
             <li><strong><a href="<?= $__role === 'viewer' ? '/saved.php' : '/dashboard.php' ?>" style="text-decoration:none;color:inherit">4hhko Analytics</a></strong></li>
-            <?php if ($__role !== 'viewer'): ?>
             <?= __navLink('/dashboard.php', 'Dashboard',      $__navActive ?? '') ?>
             <?= __navLink('/insights.php',  'Insights',       $__navActive ?? '') ?>
-            <?php endif; ?>
             <?= __navLink('/saved.php',     'Saved Reports',  $__navActive ?? '') ?>
             <?php if ($__role === 'super_admin'): ?>
             <?= __navLink('/users.php',     'Users',          $__navActive ?? '') ?>

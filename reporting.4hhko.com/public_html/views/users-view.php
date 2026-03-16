@@ -71,9 +71,9 @@ if (!defined('IN_APP')) { http_response_code(403); exit; }
                 </label>
                 <label>Sections
                     <div class="section-checks" id="new-sections" style="margin-top:0.25rem">
-                        <label><input type="checkbox" value="traffic"> traffic</label>
-                        <label><input type="checkbox" value="errors"> errors</label>
-                        <label><input type="checkbox" value="engagement"> engagement</label>
+                        <label><input type="checkbox" value="traffic" checked> traffic</label>
+                        <label><input type="checkbox" value="errors" checked> errors</label>
+                        <label><input type="checkbox" value="engagement" checked> engagement</label>
                     </div>
                 </label>
             </fieldset>
