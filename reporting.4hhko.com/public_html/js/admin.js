@@ -5,7 +5,7 @@
 
 'use strict';
 
-const SECTIONS = ['traffic', 'errors', 'engagement'];
+const SECTIONS = ['traffic', 'errors', 'engagement', 'insights'];
 
 // ── Model ─────────────────────────────────────────────────────────────────
 

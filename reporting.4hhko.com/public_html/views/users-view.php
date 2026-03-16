@@ -74,6 +74,7 @@ if (!defined('IN_APP')) { http_response_code(403); exit; }
                         <label><input type="checkbox" value="traffic" checked> traffic</label>
                         <label><input type="checkbox" value="errors" checked> errors</label>
                         <label><input type="checkbox" value="engagement" checked> engagement</label>
+                        <label><input type="checkbox" value="insights" checked> insights</label>
                     </div>
                 </label>
             </fieldset>

@@ -340,8 +340,19 @@ if ($resource === 'users') {
     exit;
 }
 
-// ── Special: Insights (analyst + super_admin only) ────────────────────────
+// ── Special: Insights ─────────────────────────────────────────────────────
 if ($resource === 'insights') {
+    // Enforce insights section access
+    if ($currentRole !== 'super_admin') {
+        $allowed = empty($currentSections)
+            ? ($currentRole !== 'viewer')
+            : in_array('insights', $currentSections, true);
+        if (!$allowed) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden']);
+            exit;
+        }
+    }
     if ($method !== 'GET') {
         http_response_code(405);
         echo json_encode(['error' => 'Method not allowed']);
