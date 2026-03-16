@@ -767,14 +767,18 @@
       initialized = true;
       console.log('[Collector] Initialized', config);
 
+      // Register error listeners immediately so errors during page load
+      // (before the session fetch completes) are not missed. reportError()
+      // calls getSessionId() which falls back to a generated ID if the
+      // server session isn't ready yet.
+      if (config.enableErrors) initErrorTracking();
+
       // Fetch/create the server-set session cookie before anything else runs.
-      // All subsystems and beacons depend on getSessionId(), so this must
-      // resolve first. Falls back to a client-generated ID on failure.
+      // Falls back to a client-generated ID on failure.
       await initSession();
 
-      // Start subsystems
+      // Start remaining subsystems
       if (config.enableVitals) initWebVitals();
-      if (config.enableErrors) initErrorTracking();
       initTimeOnPage();
       initActivityTracking();
 

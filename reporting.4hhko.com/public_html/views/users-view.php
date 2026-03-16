@@ -10,7 +10,7 @@ if (!defined('IN_APP')) { http_response_code(403); exit; }
     <title>User Management — 4hhko Analytics</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.classless.min.css">
     <style>
-        :root { font-size: 13px; }
+        :root { font-size: 14px; }
         body { padding: 0; }
         header { padding: 0.5rem 1rem; border-bottom: 1px solid var(--pico-muted-border-color); }
         header nav { display: flex; justify-content: space-between; align-items: center; }

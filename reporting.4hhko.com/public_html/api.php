@@ -322,6 +322,7 @@ if ($resource === 'insights') {
         exit;
     }
 
+    try {
     $stats = $db->query(
         "SELECT COUNT(DISTINCT session_id) AS unique_sessions,
                 COUNT(*) AS total_pageviews,
@@ -371,7 +372,7 @@ if ($resource === 'insights') {
     )->fetchAll();
 
     $screens = $db->query(
-        "SELECT screen_width || 'x' || screen_height AS resolution, COUNT(*) AS cnt
+        "SELECT screen_width::text || 'x' || screen_height::text AS resolution, COUNT(*) AS cnt
          FROM pageviews
          WHERE screen_width IS NOT NULL AND screen_height IS NOT NULL
          GROUP BY screen_width, screen_height ORDER BY cnt DESC LIMIT 10"
@@ -399,6 +400,10 @@ if ($resource === 'insights') {
         'memory'         => $memory,
         'color_scheme'   => $colorScheme,
     ]);
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Query failed: ' . $e->getMessage()]);
+    }
     exit;
 }
 
